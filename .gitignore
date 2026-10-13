@@ -16,6 +16,8 @@ dist-ssr
 *.db-journal
 *.sqlite
 *.sqlite3
+*.backup
+server/backups/
 
 # Environment
 .env
