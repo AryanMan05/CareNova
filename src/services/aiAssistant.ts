@@ -2,7 +2,7 @@
 // Requirement 10.1 & Improvement 2: Multi-turn conversations, relevant context-aware replies, simple friendly language, no repetitive loops
 // Lead Architect: Aryan More
 
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { api } from '../lib/api';
 import { UserProfile, WeightLog, BloodPressureLog, Medication } from '../types/health';
 
 export interface ChatHistoryMessage {
@@ -63,7 +63,7 @@ export async function askCareNovaAI({
   const isEmergency = EMERGENCY_KEYWORDS.some((kw) => lowerMsg.includes(kw));
   if (isEmergency) {
     return {
-      answer: `⚠️ **URGENT EMERGENCY ALERT**\n\nThe symptoms or concerns you described could indicate a life-threatening medical emergency (such as a heart attack, stroke, severe respiratory difficulty, or acute crisis).\n\n**Please take immediate action:**\n1. **Call 112 or 108 immediately** (National Emergency Services).\n2. If you are experiencing thoughts of self-harm or deep distress, call the **KIRAN Mental Health Helpline at 1800-599-0019** right now.\n3. Stay seated, keep calm, notify someone near you, and do not drive yourself.\n\n*CareNova is an educational assistant and cannot diagnose or triage acute emergencies.*`,
+      answer: `⚠️ **URGENT EMERGENCY ALERT**\n\nThe symptoms or concerns you described could indicate a life-threatening medical emergency (such as a heart attack, stroke, severe respiratory difficulty, or acute crisis).\n\n**Please take immediate action:**\n1. **Call 112 or 108 immediately** (National Emergency Services in India).\n2. If you are experiencing thoughts of self-harm or deep emotional distress, call the **KIRAN Mental Health Helpline at 1800-599-0019** right now.\n3. Stay seated, keep calm, notify someone near you, and do not drive yourself.\n\n*CareNova is an educational assistant and cannot diagnose or triage acute emergencies.*`,
       isFallback: true,
       safetyAlert: 'Emergency escalation triggered',
     };
@@ -83,31 +83,23 @@ export async function askCareNovaAI({
     contextSnippet = `Patient Profile: Name: ${profile.full_name}, Age: ${age}, Gender: ${gender}, Current Weight: ${weight}, Blood Pressure: ${bp}, Current Medications: ${meds}.`;
   }
 
-  // 1. Try Supabase Edge Function (Gemini server-side API call)
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase.functions.invoke('carenova-ai-consult', {
-        body: {
-          prompt: userMessage,
-          conversation: conversationHistory,
-          context: contextSnippet,
-        },
-      });
-
-      if (!error && data?.reply) {
-        return {
-          answer: data.reply,
-          isFallback: false,
-        };
-      }
-    } catch (err) {
-      console.warn('Edge function invoke fallback to local intelligence engine:', err);
+  // Real Conversational AI Backend Call (Render Backend with Google Gemini)
+  try {
+    const aiResult = await api.ai.chat(userMessage, conversationHistory, contextSnippet);
+    if (aiResult?.reply) {
+      return {
+        answer: aiResult.reply,
+        isFallback: !aiResult.configured,
+      };
     }
+    throw new Error('No reply returned by AI engine.');
+  } catch (err: any) {
+    console.error('CareNova AI request error:', err);
+    return {
+      answer: `⚠️ **AI Service Notice**\n\n${err.message || 'The AI service could not be reached right now.'}\n\nPlease check your backend connection or ensure your **\`GEMINI_API_KEY\`** is added in your Render Environment Variables.`,
+      isFallback: true,
+    };
   }
-
-  // 2. Intelligent, Dynamic Conversational Engine (Zero repetitive loops)
-  // Handles thousands of health, lifestyle, nutrition, workout, symptom, habit, and follow-up queries with warm, simple language
-  return generateDynamicConversationalResponse(userMessage, conversationHistory, contextSnippet);
 }
 
 function generateDynamicConversationalResponse(

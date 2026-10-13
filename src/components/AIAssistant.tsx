@@ -57,6 +57,34 @@ export const AIAssistant: React.FC = () => {
     scrollToBottom();
   }, [messages, isTyping]);
 
+  const renderFormattedText = (text: string) => {
+    return text.split('\n').map((line, idx) => {
+      // Process **bold** and *italic*
+      const parts = line.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+      return (
+        <div key={idx} className={line.trim() === '' ? 'h-2' : 'min-h-[1rem]'}>
+          {parts.map((part, pIdx) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              return (
+                <strong key={pIdx} className="font-bold text-[#0B343B] dark:text-white">
+                  {part.slice(2, -2)}
+                </strong>
+              );
+            }
+            if (part.startsWith('*') && part.endsWith('*')) {
+              return (
+                <em key={pIdx} className="italic text-[#168B83] dark:text-[#64D8C1]">
+                  {part.slice(1, -1)}
+                </em>
+              );
+            }
+            return part;
+          })}
+        </div>
+      );
+    });
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
     if (!text || isTyping) return;
@@ -185,7 +213,7 @@ export const AIAssistant: React.FC = () => {
                     : 'bg-[#F7FCFA] dark:bg-[#122B2F] border border-[#D8ECE7] dark:border-[#234E54] text-[#0B343B] dark:text-[#EAF7F4] whitespace-pre-line'
                 }`}
               >
-                {msg.text}
+                {isUser ? msg.text : renderFormattedText(msg.text)}
                 <div
                   className={`mt-2 text-[10px] ${
                     isUser ? 'text-[#A8E6D5] text-right' : 'text-[#7E9FA8] dark:text-[#789B96]'

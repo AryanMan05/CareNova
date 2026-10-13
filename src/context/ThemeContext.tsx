@@ -30,14 +30,21 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     const root = document.documentElement;
+    const body = document.body;
     if (theme === 'dark') {
       root.classList.add('dark');
+      body.classList.add('dark');
       root.setAttribute('data-theme', 'dark');
       root.style.colorScheme = 'dark';
+      body.style.backgroundColor = '#0B1720';
+      body.style.color = '#EAF7F4';
     } else {
       root.classList.remove('dark');
+      body.classList.remove('dark');
       root.setAttribute('data-theme', 'light');
       root.style.colorScheme = 'light';
+      body.style.backgroundColor = '#F2F9F8';
+      body.style.color = '#183447';
     }
     localStorage.setItem('carenova_theme', theme);
   }, [theme]);

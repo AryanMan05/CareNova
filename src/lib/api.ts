@@ -192,4 +192,14 @@ export const api = {
       });
     },
   },
+
+  // AI Health Assistant
+  ai: {
+    async chat(prompt: string, conversation: any[] = [], context: string = '') {
+      return request<{ configured: boolean; reply: string; provider?: string }>('/api/ai/chat', {
+        method: 'POST',
+        body: JSON.stringify({ prompt, conversation, context }),
+      });
+    },
+  },
 };

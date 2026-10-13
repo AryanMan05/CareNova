@@ -760,6 +760,180 @@ app.delete('/api/admin/disease-library/:id', authenticate, requireAdmin, async (
 });
 
 // -------------------------------------------------------------
+// Real Conversational AI Health Assistant (Gemini & OpenAI)
+// -------------------------------------------------------------
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    const { prompt, conversation = [], context = '' } = req.body;
+
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+      return res.status(400).json({ error: 'Please enter a message or question.' });
+    }
+
+    const cleanPrompt = prompt.trim();
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
+
+    if (!geminiKey && !openaiKey) {
+      return res.json({
+        configured: false,
+        reply: `⚠️ **CareNova AI Setup Required**
+
+To activate real-time conversational AI, please add your free **\`GEMINI_API_KEY\`** in your Render Dashboard (or in your \`server/.env\` file).
+
+**Quick Free Setup (takes 1 minute):**
+1. Visit **[Google AI Studio](https://aistudio.google.com/)** and click **Get API Key** (100% free, no credit card required).
+2. In your **Render Dashboard**, open your CareNova backend service > **Environment Variables**.
+3. Add **\`GEMINI_API_KEY\`** with your copied key and click **Save**.
+4. CareNova AI will automatically connect and respond conversationally!
+
+*(Your health records, trackers, calculators, and disease library remain fully accessible.)*`,
+      });
+    }
+
+    const systemInstruction = `You are CareNova AI, an empathetic, supportive, and knowledgeable personal health & wellness companion created for the CareNova platform (Lead Architect: Aryan More).
+
+Your core objectives:
+1. Carefully understand the user's specific query and provide helpful, relevant, and human-like answers.
+2. Remember and refer back to context from previous messages in the current conversation to answer follow-up questions naturally.
+3. Support both health/wellness topics (nutrition, sleep, vitals, habit building, exercises) and general friendly conversation.
+4. Explain all medical concepts in simple, everyday English. If a clinical term is mentioned, briefly explain what it means in plain words.
+5. Respond in the same language as the user whenever possible. If the user writes in Hindi or Hinglish (e.g., "mujhe headache ho raha hai" or "sugar kaise control karein?"), reply warmly and naturally in Hindi or Hinglish.
+6. Provide practical, helpful steps rather than repeating repetitive robotic disclaimers on every single turn.
+7. Keep responses concise, clear, and easy to read (2 to 4 short paragraphs or bullet points), unless the user explicitly asks for in-depth details.
+8. Clinical Safety & Emergency Rules: Never invent medical diagnoses or claim uncertain health info as definite fact. If the user describes acute emergency symptoms (such as crushing chest pain, difficulty breathing, slurred speech, sudden paralysis, severe bleeding, or suicidal distress), urge them to immediately seek emergency care by calling 112 or 108 in India or their local emergency number.
+${context ? `\nUser Health Profile Context:\n${context}` : ''}`;
+
+    // 1. Google Gemini Provider (Free Tier Available on Google AI Studio)
+    if (geminiKey) {
+      const contents = [];
+
+      // Add recent conversation history (up to last 10 turns)
+      if (Array.isArray(conversation)) {
+        const recent = conversation.slice(-10);
+        for (const msg of recent) {
+          if (msg && msg.text) {
+            contents.push({
+              role: msg.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: String(msg.text) }],
+            });
+          }
+        }
+      }
+
+      // Add current message
+      contents.push({
+        role: 'user',
+        parts: [{ text: cleanPrompt }],
+      });
+
+      const modelsToTry = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+      let geminiResponse = null;
+      let lastGeminiError = null;
+
+      for (const model of modelsToTry) {
+        try {
+          const apiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                system_instruction: {
+                  parts: [{ text: systemInstruction }],
+                },
+                contents,
+                generationConfig: {
+                  temperature: 0.7,
+                  maxOutputTokens: 1000,
+                },
+              }),
+            }
+          );
+
+          if (apiRes.ok) {
+            geminiResponse = await apiRes.json();
+            break;
+          } else {
+            const errBody = await apiRes.json().catch(() => ({}));
+            lastGeminiError = errBody?.error?.message || `HTTP ${apiRes.status}`;
+          }
+        } catch (fetchErr) {
+          lastGeminiError = fetchErr.message;
+        }
+      }
+
+      if (geminiResponse?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        const reply = geminiResponse.candidates[0].content.parts[0].text;
+        return res.json({
+          configured: true,
+          reply,
+          provider: 'google-gemini',
+        });
+      }
+
+      if (lastGeminiError && !openaiKey) {
+        return res.status(502).json({
+          error: `Google Gemini API returned: ${lastGeminiError}. Please verify your GEMINI_API_KEY.`,
+        });
+      }
+    }
+
+    // 2. OpenAI Provider (Alternative / Fallback)
+    if (openaiKey) {
+      const messages = [{ role: 'system', content: systemInstruction }];
+      if (Array.isArray(conversation)) {
+        conversation.slice(-10).forEach((msg) => {
+          if (msg && msg.text) {
+            messages.push({
+              role: msg.role === 'assistant' ? 'assistant' : 'user',
+              content: String(msg.text),
+            });
+          }
+        });
+      }
+      messages.push({ role: 'user', content: cleanPrompt });
+
+      const apiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openaiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages,
+          max_tokens: 1000,
+          temperature: 0.7,
+        }),
+      });
+
+      if (apiRes.ok) {
+        const openAiData = await apiRes.json();
+        const reply = openAiData.choices?.[0]?.message?.content;
+        if (reply) {
+          return res.json({
+            configured: true,
+            reply,
+            provider: 'openai',
+          });
+        }
+      } else {
+        const errBody = await apiRes.json().catch(() => ({}));
+        return res.status(502).json({
+          error: `OpenAI API returned: ${errBody?.error?.message || apiRes.statusText}`,
+        });
+      }
+    }
+
+    return res.status(500).json({ error: 'AI service could not generate a response. Please try again.' });
+  } catch (err) {
+    console.error('AI Chat Error:', err);
+    res.status(500).json({ error: 'Unexpected error communicating with AI service.' });
+  }
+});
+
+// -------------------------------------------------------------
 // Start Server
 // -------------------------------------------------------------
 async function startServer() {
