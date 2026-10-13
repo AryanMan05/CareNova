@@ -1,9 +1,10 @@
-// Module D: Disease & Health Awareness Library (22 Clinical Categories)
-// Simple everyday language explanations, clear categories, and search
+// CareNova Disease & Health Awareness Library
+// Everyday language explanations, clear categories, live search, and modal details
+// Palette: Forest Teal (#0B343B), Deep Navy (#102D3E), Primary Teal (#168B83), Fresh Mint (#A8E6D5 / #64D8C1)
 // Lead Architect: Aryan More
 
 import React, { useState } from 'react';
-import { Search, ChevronRight, X } from 'lucide-react';
+import { Search, ChevronRight, X, BookOpen } from 'lucide-react';
 import { useHealthData } from '../context/HealthDataContext';
 import { DiseaseLibraryItem } from '../types/health';
 
@@ -29,7 +30,6 @@ export const DiseaseLibrary: React.FC = () => {
     'Infections & Fevers',
   ];
 
-  // Category mapper to keep database compatibility while showing simple names
   const mapDbCategoryToDisplay = (dbCat: string) => {
     switch (dbCat) {
       case 'Cardiology': return 'Heart & Blood Vessels';
@@ -64,13 +64,13 @@ export const DiseaseLibrary: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn text-[#183447] dark:text-[#EAF7F4]">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
+        <h1 className="text-2xl font-bold tracking-tight text-[#0B343B] dark:text-[#EAF7F4]">
           Health & Condition Library
         </h1>
-        <p className="text-xs text-stone-500 mt-1">
+        <p className="text-xs text-[#476A76] dark:text-[#A9C5C1] mt-1">
           Learn about common health conditions, their symptoms, and simple lifestyle habits in plain English.
         </p>
       </div>
@@ -78,13 +78,13 @@ export const DiseaseLibrary: React.FC = () => {
       {/* Search Bar & Category Filters */}
       <div className="space-y-3">
         <div className="relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-[#7E9FA8] dark:text-[#789B96]" />
           <input
             type="text"
             placeholder="Search any condition (e.g. blood pressure, diabetes, asthma, acidity)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-stone-200 rounded-2xl text-xs outline-none focus:border-indigo-600 shadow-2xs font-medium"
+            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#17363A] border border-[#D8ECE7] dark:border-[#234E54] text-[#0B343B] dark:text-[#EAF7F4] placeholder-[#7E9FA8] dark:placeholder-[#789B96] rounded-2xl text-xs outline-none focus:border-[#168B83] shadow-xs font-medium"
           />
         </div>
 
@@ -96,8 +96,8 @@ export const DiseaseLibrary: React.FC = () => {
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedCategory === cat
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
+                  ? 'bg-[#168B83] text-white shadow-sm'
+                  : 'bg-white dark:bg-[#17363A] text-[#476A76] dark:text-[#A9C5C1] border border-[#D8ECE7] dark:border-[#234E54] hover:bg-[#F7FCFA] dark:hover:bg-[#122B2F]'
               }`}
             >
               {cat}
@@ -112,26 +112,26 @@ export const DiseaseLibrary: React.FC = () => {
           <div
             key={item.id}
             onClick={() => setActiveItem(item)}
-            className="bg-white rounded-3xl p-5 border border-stone-200/80 hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
+            className="bg-white dark:bg-[#17363A] rounded-3xl p-5 border border-[#D8ECE7] dark:border-[#234E54] hover:border-[#168B83] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
           >
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#E0F7F1] dark:bg-[#163B38] text-[#168B83] dark:text-[#64D8C1] border border-[#A8E6D5] dark:border-[#234E54]">
                   {mapDbCategoryToDisplay(item.category)}
                 </span>
-                <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
+                <ChevronRight className="w-4 h-4 text-[#7E9FA8] group-hover:text-[#168B83] dark:group-hover:text-[#64D8C1] group-hover:translate-x-0.5 transition-all" />
               </div>
-              <h3 className="text-base font-bold text-stone-900 group-hover:text-indigo-900 transition-colors">
+              <h3 className="text-base font-bold text-[#0B343B] dark:text-[#EAF7F4] group-hover:text-[#168B83] dark:group-hover:text-[#64D8C1] transition-colors">
                 {item.title}
               </h3>
-              <p className="text-xs text-stone-500 mt-2 line-clamp-3 leading-relaxed">
+              <p className="text-xs text-[#476A76] dark:text-[#A9C5C1] mt-2 line-clamp-3 leading-relaxed">
                 {item.overview}
               </p>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between text-xs text-indigo-600 font-bold">
-              <span>Read simple guide →</span>
-              <span className="text-stone-400 font-normal">{item.symptoms.length} symptoms noted</span>
+            <div className="mt-4 pt-3 border-t border-[#D8ECE7] dark:border-[#234E54] flex items-center justify-between text-xs text-[#168B83] dark:text-[#64D8C1] font-bold">
+              <span>Read guide →</span>
+              <span className="text-[#7E9FA8] dark:text-[#789B96] font-normal">{item.symptoms.length} symptoms</span>
             </div>
           </div>
         ))}
@@ -139,36 +139,43 @@ export const DiseaseLibrary: React.FC = () => {
 
       {/* Detail Modal Dialog */}
       {activeItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl border border-stone-200">
-            <div className="flex items-start justify-between pb-4 border-b border-stone-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-[#17363A] rounded-3xl p-6 md:p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl border border-[#D8ECE7] dark:border-[#234E54] text-[#183447] dark:text-[#EAF7F4] animate-fadeIn">
+            <div className="flex items-start justify-between pb-4 border-b border-[#D8ECE7] dark:border-[#234E54]">
               <div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#E0F7F1] dark:bg-[#163B38] text-[#168B83] dark:text-[#64D8C1] border border-[#A8E6D5] dark:border-[#234E54]">
                   {mapDbCategoryToDisplay(activeItem.category)}
                 </span>
-                <h2 className="text-xl font-bold text-stone-900 mt-1">{activeItem.title}</h2>
+                <h2 className="text-xl font-bold text-[#0B343B] dark:text-[#EAF7F4] mt-1">{activeItem.title}</h2>
               </div>
               <button
                 onClick={() => setActiveItem(null)}
-                className="p-1.5 text-stone-400 hover:text-stone-600 rounded-xl hover:bg-stone-100"
+                className="p-1.5 text-[#7E9FA8] hover:text-[#0B343B] dark:hover:text-white rounded-xl hover:bg-stone-100 dark:hover:bg-[#10434C]"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="mt-6 space-y-6 text-xs text-stone-700">
+            <div className="mt-6 space-y-6 text-xs text-[#183447] dark:text-[#EAF7F4]">
               {/* Overview */}
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-1">What is this condition?</h4>
-                <p className="text-stone-700 leading-relaxed text-sm">{activeItem.overview}</p>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#7E9FA8] dark:text-[#789B96] mb-1">
+                  What is this condition?
+                </h4>
+                <p className="text-[#476A76] dark:text-[#A9C5C1] leading-relaxed text-sm">{activeItem.overview}</p>
               </div>
 
               {/* Symptoms */}
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">Common Signs & Symptoms</h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#7E9FA8] dark:text-[#789B96] mb-2">
+                  Common Signs & Symptoms
+                </h4>
                 <div className="flex flex-wrap gap-1.5">
                   {activeItem.symptoms.map((sym, idx) => (
-                    <span key={idx} className="px-3 py-1 rounded-xl bg-stone-100 text-stone-800 font-semibold text-xs">
+                    <span
+                      key={idx}
+                      className="px-3 py-1 rounded-xl bg-[#F7FCFA] dark:bg-[#122B2F] border border-[#D8ECE7] dark:border-[#234E54] text-[#0B343B] dark:text-[#EAF7F4] font-semibold text-xs"
+                    >
                       {sym}
                     </span>
                   ))}
@@ -177,8 +184,10 @@ export const DiseaseLibrary: React.FC = () => {
 
               {/* Causes */}
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-1">Why does this happen?</h4>
-                <ul className="list-disc list-inside space-y-1 text-stone-600 leading-relaxed">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#7E9FA8] dark:text-[#789B96] mb-1">
+                  Why does this happen?
+                </h4>
+                <ul className="list-disc list-inside space-y-1 text-[#476A76] dark:text-[#A9C5C1] leading-relaxed">
                   {activeItem.causes.map((c, idx) => (
                     <li key={idx}>{c}</li>
                   ))}
@@ -187,24 +196,28 @@ export const DiseaseLibrary: React.FC = () => {
 
               {/* Prevention & Treatments */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-900 mb-1.5">Everyday Prevention Tips</h4>
-                  <ul className="space-y-1 text-xs text-indigo-950">
+                <div className="p-4 rounded-2xl bg-[#E0F7F1]/60 dark:bg-[#163B38]/60 border border-[#A8E6D5] dark:border-[#234E54]">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#168B83] dark:text-[#64D8C1] mb-1.5">
+                    Everyday Prevention Tips
+                  </h4>
+                  <ul className="space-y-1 text-xs text-[#0B343B] dark:text-[#EAF7F4]">
                     {activeItem.prevention.map((p, idx) => (
                       <li key={idx}>• {p}</li>
                     ))}
                   </ul>
                 </div>
-                <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">Standard Medical Care</h4>
-                  <p className="text-xs text-stone-700 leading-relaxed">{activeItem.treatment}</p>
+                <div className="p-4 rounded-2xl bg-[#F7FCFA] dark:bg-[#122B2F] border border-[#D8ECE7] dark:border-[#234E54]">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#476A76] dark:text-[#A9C5C1] mb-1.5">
+                    Standard Medical Care
+                  </h4>
+                  <p className="text-xs text-[#0B343B] dark:text-[#EAF7F4] leading-relaxed">{activeItem.treatment}</p>
                 </div>
               </div>
 
               {/* Emergency Warning Signs */}
               {activeItem.emergency_signs && (
-                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900">
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-rose-700 mb-1">
+                <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-900 dark:text-rose-200">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-rose-700 dark:text-rose-300 mb-1">
                     When to Seek Immediate Care
                   </h4>
                   <p className="text-xs leading-relaxed">{activeItem.emergency_signs}</p>
@@ -212,11 +225,11 @@ export const DiseaseLibrary: React.FC = () => {
               )}
             </div>
 
-            <div className="mt-8 pt-4 border-t border-stone-100 flex items-center justify-between text-xs text-stone-400">
+            <div className="mt-8 pt-4 border-t border-[#D8ECE7] dark:border-[#234E54] flex items-center justify-between text-xs text-[#7E9FA8] dark:text-[#789B96]">
               <span>CareNova Everyday Health Library</span>
               <button
                 onClick={() => setActiveItem(null)}
-                className="px-4 py-2 rounded-xl bg-stone-900 text-white font-semibold hover:bg-stone-800"
+                className="px-4 py-2 rounded-xl bg-[#168B83] text-white font-semibold hover:bg-[#12726B]"
               >
                 Close
               </button>

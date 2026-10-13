@@ -1,9 +1,10 @@
-// Module F: CareNova AI Health Assistant
+// CareNova AI Health Assistant
 // Clean, friendly, multi-turn conversational AI with context toggles, loading states, and suggestions
+// Palette: Forest Teal (#0B343B), Deep Navy (#102D3E), Primary Teal (#168B83), Fresh Mint (#A8E6D5 / #64D8C1)
 // Lead Architect: Aryan More
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, AlertCircle, RefreshCw, MessageSquare } from 'lucide-react';
+import { Send, Bot, User, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useHealthData } from '../context/HealthDataContext';
 import { askCareNovaAI, ChatHistoryMessage } from '../services/aiAssistant';
@@ -17,14 +18,20 @@ interface ChatMessage {
 }
 
 export const AIAssistant: React.FC = () => {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { getLatestWeight, getLatestBloodPressure, medications } = useHealthData();
+
+  const firstName = profile?.full_name
+    ? profile.full_name.split(' ')[0]
+    : user?.full_name
+    ? user.full_name.split(' ')[0]
+    : 'friend';
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       sender: 'assistant',
-      text: `Hello ${profile?.full_name ? profile.full_name.split(' ')[0] : 'friend'}! I am **CareNova AI**, your friendly personal health assistant.\n\nYou can ask me anything about healthy eating, improving sleep, staying active, understanding blood pressure or sugar readings, or general wellness habits in simple, everyday English.\n\n*How can I help you feel your best today?*`,
+      text: `Hello ${firstName}! I am **CareNova AI**, your friendly personal health assistant.\n\nYou can ask me anything about healthy eating, improving sleep, staying active, understanding blood pressure or sugar readings, or general wellness habits in simple, everyday English.\n\n*How can I help you feel your best today?*`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -67,7 +74,6 @@ export const AIAssistant: React.FC = () => {
     setInputText('');
     setIsTyping(true);
 
-    // Build chat history for conversational awareness
     const history: ChatHistoryMessage[] = messages
       .slice(-6)
       .map((m) => ({
@@ -115,19 +121,19 @@ export const AIAssistant: React.FC = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col bg-white rounded-3xl border border-stone-200/80 shadow-sm overflow-hidden animate-fadeIn">
+    <div className="h-[calc(100vh-10rem)] flex flex-col bg-white dark:bg-[#17363A] rounded-3xl border border-[#D8ECE7] dark:border-[#234E54] shadow-xs overflow-hidden animate-fadeIn text-[#183447] dark:text-[#EAF7F4]">
       {/* Assistant Header */}
-      <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="px-6 py-4 border-b border-[#D8ECE7] dark:border-[#234E54] bg-[#F7FCFA] dark:bg-[#122B2F] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20">
+          <div className="w-10 h-10 rounded-2xl bg-[#168B83] text-white flex items-center justify-center shadow-xs">
             <Bot className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
+            <h2 className="text-sm font-bold text-[#0B343B] dark:text-[#EAF7F4] flex items-center gap-1.5">
               <span>CareNova Health Assistant</span>
-              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+              <Sparkles className="w-3.5 h-3.5 text-[#168B83] dark:text-[#64D8C1]" />
             </h2>
-            <p className="text-xs text-stone-500">Everyday wellness insights in friendly, simple English</p>
+            <p className="text-xs text-[#476A76] dark:text-[#A9C5C1]">Everyday wellness insights in friendly, simple English</p>
           </div>
         </div>
 
@@ -138,14 +144,14 @@ export const AIAssistant: React.FC = () => {
               type="checkbox"
               checked={includeContext}
               onChange={(e) => setIncludeContext(e.target.checked)}
-              className="w-4 h-4 text-indigo-600 rounded border-stone-300 focus:ring-indigo-500"
+              className="w-4 h-4 text-[#168B83] rounded border-[#D8ECE7] dark:border-[#234E54] focus:ring-[#168B83]"
             />
-            <span className="text-xs font-semibold text-stone-700">Use My Health Context</span>
+            <span className="text-xs font-semibold text-[#476A76] dark:text-[#A9C5C1]">Use My Health Context</span>
           </label>
 
           <button
             onClick={handleClearChat}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 transition-colors"
+            className="p-1.5 rounded-lg text-[#7E9FA8] hover:text-[#0B343B] dark:hover:text-white hover:bg-stone-200/60 dark:hover:bg-[#10434C] transition-colors"
             title="Start New Conversation"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -164,7 +170,9 @@ export const AIAssistant: React.FC = () => {
             >
               <div
                 className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center text-xs font-bold ${
-                  isUser ? 'bg-stone-800 text-white' : 'bg-indigo-100 text-indigo-700'
+                  isUser
+                    ? 'bg-[#0B343B] dark:bg-[#071017] text-white'
+                    : 'bg-[#E0F7F1] dark:bg-[#163B38] text-[#168B83] dark:text-[#64D8C1]'
                 }`}
               >
                 {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
@@ -173,14 +181,14 @@ export const AIAssistant: React.FC = () => {
               <div
                 className={`rounded-2xl p-4 text-xs leading-relaxed ${
                   isUser
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-stone-50 border border-stone-100 text-stone-800 whitespace-pre-line'
+                    ? 'bg-[#168B83] text-white shadow-xs'
+                    : 'bg-[#F7FCFA] dark:bg-[#122B2F] border border-[#D8ECE7] dark:border-[#234E54] text-[#0B343B] dark:text-[#EAF7F4] whitespace-pre-line'
                 }`}
               >
                 {msg.text}
                 <div
                   className={`mt-2 text-[10px] ${
-                    isUser ? 'text-indigo-200 text-right' : 'text-stone-400'
+                    isUser ? 'text-[#A8E6D5] text-right' : 'text-[#7E9FA8] dark:text-[#789B96]'
                   }`}
                 >
                   {msg.timestamp}
@@ -191,8 +199,8 @@ export const AIAssistant: React.FC = () => {
         })}
 
         {isTyping && (
-          <div className="flex gap-3 mr-auto items-center text-xs text-stone-500 p-3 bg-stone-50 rounded-2xl border border-stone-100">
-            <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center animate-spin">
+          <div className="flex gap-3 mr-auto items-center text-xs text-[#476A76] dark:text-[#A9C5C1] p-3 bg-[#F7FCFA] dark:bg-[#122B2F] rounded-2xl border border-[#D8ECE7] dark:border-[#234E54]">
+            <div className="w-6 h-6 rounded-lg bg-[#E0F7F1] dark:bg-[#163B38] text-[#168B83] dark:text-[#64D8C1] flex items-center justify-center animate-spin">
               <Bot className="w-3.5 h-3.5" />
             </div>
             <span>CareNova AI is thinking and writing your answer...</span>
@@ -200,8 +208,8 @@ export const AIAssistant: React.FC = () => {
         )}
 
         {errorMessage && (
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl text-xs text-rose-800 dark:text-rose-300 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
@@ -211,13 +219,13 @@ export const AIAssistant: React.FC = () => {
 
       {/* Quick Question Suggestions */}
       {messages.length <= 2 && (
-        <div className="px-6 py-2 border-t border-stone-100 bg-stone-50/40 flex items-center gap-2 overflow-x-auto scrollbar-none">
-          <span className="text-[11px] font-semibold text-stone-400 shrink-0">Try asking:</span>
+        <div className="px-6 py-2 border-t border-[#D8ECE7] dark:border-[#234E54] bg-[#F7FCFA]/60 dark:bg-[#122B2F]/60 flex items-center gap-2 overflow-x-auto scrollbar-none">
+          <span className="text-[11px] font-semibold text-[#7E9FA8] dark:text-[#789B96] shrink-0">Try asking:</span>
           {quickPrompts.map((prompt, idx) => (
             <button
               key={idx}
               onClick={() => handleSendMessage(prompt)}
-              className="px-3 py-1 rounded-full bg-white border border-stone-200/80 text-[11px] text-stone-600 hover:text-indigo-600 hover:border-indigo-200 whitespace-nowrap transition-colors shadow-2xs"
+              className="px-3 py-1 rounded-full bg-white dark:bg-[#17363A] border border-[#D8ECE7] dark:border-[#234E54] text-[11px] text-[#476A76] dark:text-[#A9C5C1] hover:text-[#168B83] dark:hover:text-[#64D8C1] hover:border-[#168B83] whitespace-nowrap transition-colors shadow-2xs"
             >
               {prompt}
             </button>
@@ -231,7 +239,7 @@ export const AIAssistant: React.FC = () => {
           e.preventDefault();
           handleSendMessage();
         }}
-        className="p-4 border-t border-stone-100 bg-white"
+        className="p-4 border-t border-[#D8ECE7] dark:border-[#234E54] bg-white dark:bg-[#17363A]"
       >
         <div className="flex items-center gap-2">
           <input
@@ -239,19 +247,19 @@ export const AIAssistant: React.FC = () => {
             placeholder="Ask about healthy habits, sleep, water, food, or vital readings..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-stone-200 text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium"
+            className="flex-1 px-4 py-2.5 rounded-xl border border-[#D8ECE7] dark:border-[#234E54] bg-[#F7FCFA] dark:bg-[#122B2F] text-[#0B343B] dark:text-[#EAF7F4] placeholder-[#7E9FA8] dark:placeholder-[#789B96] text-xs outline-none focus:border-[#168B83] font-medium"
           />
           <button
             type="submit"
             disabled={!inputText.trim() || isTyping}
-            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md shadow-indigo-600/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+            className="px-4 py-2.5 rounded-xl bg-[#168B83] hover:bg-[#12726B] text-white font-semibold text-xs shadow-md shadow-[#168B83]/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
           >
             <Send className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Ask</span>
           </button>
         </div>
 
-        <div className="mt-2 text-[10px] text-stone-400 flex items-center justify-between px-1">
+        <div className="mt-2 text-[10px] text-[#7E9FA8] dark:text-[#789B96] flex items-center justify-between px-1">
           <span>Friendly health guidance only. Always consult a healthcare professional for diagnosis.</span>
           <span>CareNova by Aryan More</span>
         </div>

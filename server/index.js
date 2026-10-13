@@ -215,14 +215,28 @@ app.get('/api/auth/me', authenticate, async (req, res) => {
 
     const user = userRes.rows[0];
 
-    const profileRes = await db.execute({
+    let profileRes = await db.execute({
       sql: 'SELECT * FROM profiles WHERE user_id = ?',
       args: [req.user.id],
     });
 
+    let profile = profileRes.rows[0];
+    if (!profile) {
+      const profileId = crypto.randomUUID();
+      await db.execute({
+        sql: 'INSERT INTO profiles (id, user_id, full_name, role) VALUES (?, ?, ?, ?)',
+        args: [profileId, user.id, user.full_name, user.role],
+      });
+      profileRes = await db.execute({
+        sql: 'SELECT * FROM profiles WHERE user_id = ?',
+        args: [user.id],
+      });
+      profile = profileRes.rows[0];
+    }
+
     res.json({
       user,
-      profile: profileRes.rows[0] || null,
+      profile,
     });
   } catch (err) {
     console.error('Auth verification error:', err);
@@ -249,40 +263,76 @@ app.put('/api/auth/profile', authenticate, async (req, res) => {
       allergies,
     } = req.body;
 
-    await db.execute({
-      sql: `UPDATE profiles SET
-              full_name = COALESCE(?, full_name),
-              age = COALESCE(?, age),
-              gender = COALESCE(?, gender),
-              height = COALESCE(?, height),
-              weight = COALESCE(?, weight),
-              blood_group = COALESCE(?, blood_group),
-              activity_level = COALESCE(?, activity_level),
-              water_goal_glasses = COALESCE(?, water_goal_glasses),
-              step_goal = COALESCE(?, step_goal),
-              sleep_goal_hours = COALESCE(?, sleep_goal_hours),
-              emergency_contact_name = COALESCE(?, emergency_contact_name),
-              emergency_contact_phone = COALESCE(?, emergency_contact_phone),
-              allergies = COALESCE(?, allergies),
-              updated_at = CURRENT_TIMESTAMP
-            WHERE user_id = ?`,
-      args: [
-        full_name,
-        age,
-        gender,
-        height,
-        weight,
-        blood_group,
-        activity_level,
-        water_goal_glasses,
-        step_goal,
-        sleep_goal_hours,
-        emergency_contact_name,
-        emergency_contact_phone,
-        allergies,
-        req.user.id,
-      ],
+    // Check if profile exists
+    const existing = await db.execute({
+      sql: 'SELECT id FROM profiles WHERE user_id = ?',
+      args: [req.user.id],
     });
+
+    if (existing.rows.length === 0) {
+      const profileId = crypto.randomUUID();
+      await db.execute({
+        sql: `INSERT INTO profiles (id, user_id, full_name, role, age, gender, height, weight, blood_group, activity_level, allergies, emergency_contact_name, emergency_contact_phone)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          profileId,
+          req.user.id,
+          full_name || req.user.full_name || 'Patient',
+          req.user.role || 'user',
+          age !== undefined ? age : null,
+          gender !== undefined ? gender : null,
+          height !== undefined ? height : null,
+          weight !== undefined ? weight : null,
+          blood_group !== undefined ? blood_group : null,
+          activity_level !== undefined ? activity_level : 'Moderate',
+          allergies !== undefined ? allergies : null,
+          emergency_contact_name !== undefined ? emergency_contact_name : null,
+          emergency_contact_phone !== undefined ? emergency_contact_phone : null,
+        ],
+      });
+    } else {
+      await db.execute({
+        sql: `UPDATE profiles SET
+                full_name = COALESCE(?, full_name),
+                age = COALESCE(?, age),
+                gender = COALESCE(?, gender),
+                height = COALESCE(?, height),
+                weight = COALESCE(?, weight),
+                blood_group = COALESCE(?, blood_group),
+                activity_level = COALESCE(?, activity_level),
+                water_goal_glasses = COALESCE(?, water_goal_glasses),
+                step_goal = COALESCE(?, step_goal),
+                sleep_goal_hours = COALESCE(?, sleep_goal_hours),
+                emergency_contact_name = COALESCE(?, emergency_contact_name),
+                emergency_contact_phone = COALESCE(?, emergency_contact_phone),
+                allergies = COALESCE(?, allergies),
+                updated_at = CURRENT_TIMESTAMP
+              WHERE user_id = ?`,
+        args: [
+          full_name !== undefined ? full_name : null,
+          age !== undefined ? age : null,
+          gender !== undefined ? gender : null,
+          height !== undefined ? height : null,
+          weight !== undefined ? weight : null,
+          blood_group !== undefined ? blood_group : null,
+          activity_level !== undefined ? activity_level : null,
+          water_goal_glasses !== undefined ? water_goal_glasses : null,
+          step_goal !== undefined ? step_goal : null,
+          sleep_goal_hours !== undefined ? sleep_goal_hours : null,
+          emergency_contact_name !== undefined ? emergency_contact_name : null,
+          emergency_contact_phone !== undefined ? emergency_contact_phone : null,
+          allergies !== undefined ? allergies : null,
+          req.user.id,
+        ],
+      });
+    }
+
+    if (full_name) {
+      await db.execute({
+        sql: 'UPDATE users SET full_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        args: [full_name, req.user.id],
+      });
+    }
 
     const updated = await db.execute({
       sql: 'SELECT * FROM profiles WHERE user_id = ?',

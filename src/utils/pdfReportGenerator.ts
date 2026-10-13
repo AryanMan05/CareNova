@@ -1,6 +1,6 @@
 // Client-Side Clinical Health Summary Generator (jsPDF)
 // Branded Credit: "Created by Aryan More"
-// Fresh design: Elegant Indigo & Lavender theme with clean typography
+// Fresh design: Forest Teal & Mint theme with clean typography
 // Lead Architect: Aryan More
 
 import jsPDF from 'jspdf';
@@ -33,8 +33,8 @@ export function generateHealthSummaryPDF(data: HealthReportData) {
     day: 'numeric',
   });
 
-  // Header Banner: Elegant Deep Indigo
-  doc.setFillColor(49, 46, 129); // #312e81 (indigo-900)
+  // Header Banner: Elegant Deep Forest Teal (#0B343B)
+  doc.setFillColor(11, 52, 59); // #0B343B
   doc.rect(0, 0, pageWidth, 38, 'F');
 
   // Title & Subtitle
@@ -144,7 +144,7 @@ export function generateHealthSummaryPDF(data: HealthReportData) {
     head: medHeaders,
     body: medRows,
     theme: 'striped',
-    headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+    headStyles: { fillColor: [22, 139, 131], textColor: [255, 255, 255], fontStyle: 'bold' }, // Primary Teal (#168B83)
     styles: { fontSize: 8.5, cellPadding: 2.5 },
     margin: { left: 14, right: 14 },
   });
@@ -168,7 +168,7 @@ export function generateHealthSummaryPDF(data: HealthReportData) {
   currentY += 12;
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(79, 70, 229);
+  doc.setTextColor(22, 139, 131); // Primary Teal (#168B83)
   doc.text('CareNova — Your Personal Health Companion • Created by Aryan More', pageWidth / 2, currentY, { align: 'center' });
 
   // Download File

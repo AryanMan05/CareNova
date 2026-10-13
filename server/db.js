@@ -4,6 +4,7 @@
 // Lead Architect: Aryan More
 
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 dotenv.config();
 
 let db;
@@ -22,13 +23,15 @@ if (tursoUrl && tursoUrl.startsWith('libsql')) {
 } else {
   // Local SQLite via Node.js built-in engine
   const { DatabaseSync } = await import('node:sqlite');
-  console.log('[Database] Using Local SQLite Engine: carenova.db');
-  const localDb = new DatabaseSync('carenova.db');
+  const dbPath = fileURLToPath(new URL('./carenova.db', import.meta.url));
+  console.log(`[Database] Using Local SQLite Engine: ${dbPath}`);
+  const localDb = new DatabaseSync(dbPath);
 
   db = {
     async execute(query) {
       const sql = typeof query === 'string' ? query : query.sql;
-      const args = typeof query === 'string' ? [] : (query.args || []);
+      const rawArgs = typeof query === 'string' ? [] : (query.args || []);
+      const args = rawArgs.map(val => (val === undefined ? null : val));
 
       const trimmed = sql.trim();
       const isSelect = /^SELECT\b/i.test(trimmed) || /^PRAGMA\b/i.test(trimmed);

@@ -1,25 +1,108 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    /* CareNova Forest Teal & Mint Wellness Palette - Light Mode */
+    --color-dark-teal: #0B343B;
+    --color-deep-navy: #102D3E;
+    --color-primary-teal: #168B83;
+    --color-primary-teal-hover: #12726B;
+    --color-fresh-mint: #A8E6D5;
+    --color-mint-light: #E0F7F1;
+    --color-mint-accent: #64D8C1;
+    --color-bg-main: #F2F9F8;
+    --color-bg-card: #FFFFFF;
+    --color-bg-card-subtle: #F7FCFA;
+    --color-border: #D8ECE7;
+    --color-border-subtle: #E8F5F2;
+    --color-text-primary: #183447;
+    --color-text-secondary: #476A76;
+    --color-text-muted: #7E9FA8;
+    
+    /* Sidebar Tokens */
+    --sidebar-bg: #0B343B;
+    --sidebar-border: #134B54;
+    --sidebar-text: #EAF7F4;
+    --sidebar-text-muted: #8FB4AD;
+    --sidebar-active-bg: #168B83;
+    --sidebar-hover-bg: #10434C;
+
+    color-scheme: light;
+  }
+
+  .dark {
+    /* CareNova Forest Teal & Mint Wellness Palette - Dark Mode */
+    --color-dark-teal: #102D32;
+    --color-deep-navy: #0B1720;
+    --color-primary-teal: #168B83;
+    --color-primary-teal-hover: #1DB3A8;
+    --color-fresh-mint: #64D8C1;
+    --color-mint-light: #163B38;
+    --color-mint-accent: #64D8C1;
+    --color-bg-main: #0B1720;
+    --color-bg-card: #17363A;
+    --color-bg-card-subtle: #122B2F;
+    --color-border: #234E54;
+    --color-border-subtle: #1C3E43;
+    --color-text-primary: #EAF7F4;
+    --color-text-secondary: #A9C5C1;
+    --color-text-muted: #789B96;
+
+    /* Sidebar Tokens (Dark) */
+    --sidebar-bg: #09141C;
+    --sidebar-border: #14353B;
+    --sidebar-text: #EAF7F4;
+    --sidebar-text-muted: #789B96;
+    --sidebar-active-bg: #168B83;
+    --sidebar-hover-bg: #17363A;
+
+    color-scheme: dark;
+  }
+
   body {
-    /* Soft ivory / warm off-white canvas with elegant charcoal typography */
-    @apply bg-[#faf9f6] text-[#24272c] antialiased font-sans selection:bg-indigo-500 selection:text-white min-h-screen;
+    background-color: var(--color-bg-main);
+    color: var(--color-text-primary);
+    @apply antialiased font-sans min-h-screen selection:bg-[#168B83] selection:text-white transition-colors duration-200;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
-/* Custom scrollbars with warm muted tones */
+/* Custom Scrollbars in Forest Teal & Mint */
 ::-webkit-scrollbar {
   width: 7px;
   height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #f5f4ef;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #dcd8cf;
+  background: #A8E6D5;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #234E54;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #b8b3a7;
+  background: #168B83;
+}
+
+/* Theme Helper Utilities */
+.bg-theme-main { background-color: var(--color-bg-main); }
+.bg-theme-card { background-color: var(--color-bg-card); }
+.bg-theme-card-subtle { background-color: var(--color-bg-card-subtle); }
+.border-theme { border-color: var(--color-border); }
+.border-theme-subtle { border-color: var(--color-border-subtle); }
+.text-theme-primary { color: var(--color-text-primary); }
+.text-theme-secondary { color: var(--color-text-secondary); }
+.text-theme-muted { color: var(--color-text-muted); }
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

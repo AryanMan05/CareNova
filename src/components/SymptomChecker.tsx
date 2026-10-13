@@ -1,5 +1,6 @@
-// Module E: Interactive Symptom Checker & Emergency Guidance
+// CareNova Interactive Symptom Checker & Emergency Guidance
 // Simplified user experience: everyday symptom descriptions, clear emergency buttons
+// Palette: Forest Teal (#0B343B), Deep Navy (#102D3E), Primary Teal (#168B83), Fresh Mint (#A8E6D5 / #64D8C1)
 // Lead Architect: Aryan More
 
 import React, { useState } from 'react';
@@ -136,13 +137,13 @@ export const SymptomChecker: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn text-[#183447] dark:text-[#EAF7F4]">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
+        <h1 className="text-2xl font-bold tracking-tight text-[#0B343B] dark:text-[#EAF7F4]">
           Check Your Symptoms & Emergency Guidance
         </h1>
-        <p className="text-xs text-stone-500 mt-1">
+        <p className="text-xs text-[#476A76] dark:text-[#A9C5C1] mt-1">
           Pick what you are feeling to see gentle home-care tips, find out when to visit a clinic, and screen for urgent red flags.
         </p>
       </div>
@@ -184,12 +185,12 @@ export const SymptomChecker: React.FC = () => {
       )}
 
       {/* Symptom Picker Grid */}
-      <div className="bg-white rounded-3xl p-6 border border-stone-200/80 shadow-2xs space-y-6">
+      <div className="bg-white dark:bg-[#17363A] rounded-3xl p-6 border border-[#D8ECE7] dark:border-[#234E54] shadow-xs space-y-6">
         <div>
-          <h3 className="text-sm font-bold text-stone-800 mb-1">
+          <h3 className="text-sm font-bold text-[#0B343B] dark:text-[#EAF7F4] mb-1">
             Step 1: What are you experiencing right now? ({selectedSymptoms.length} selected)
           </h3>
-          <p className="text-xs text-stone-400">
+          <p className="text-xs text-[#476A76] dark:text-[#A9C5C1]">
             Click on any symptoms below to select them:
           </p>
         </div>
@@ -205,22 +206,24 @@ export const SymptomChecker: React.FC = () => {
                 className={`p-4 rounded-2xl text-left border transition-all flex items-start justify-between gap-3 ${
                   isSelected
                     ? symptom.isRedFlag
-                      ? 'bg-rose-50 border-rose-300 text-rose-950'
-                      : 'bg-indigo-50 border-indigo-300 text-indigo-950'
-                    : 'bg-stone-50/70 border-stone-200/80 text-stone-800 hover:bg-stone-100/80'
+                      ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-300 dark:border-rose-800 text-rose-950 dark:text-rose-200'
+                      : 'bg-[#E0F7F1] dark:bg-[#163B38] border-[#168B83] text-[#0B343B] dark:text-[#EAF7F4]'
+                    : 'bg-[#F7FCFA] dark:bg-[#122B2F] border-[#D8ECE7] dark:border-[#234E54] text-[#0B343B] dark:text-[#EAF7F4] hover:border-[#168B83]'
                 }`}
               >
                 <div>
                   <span className={`block text-[10px] uppercase tracking-wider font-bold mb-0.5 ${
-                    symptom.isRedFlag ? 'text-rose-600' : 'text-stone-400'
+                    symptom.isRedFlag ? 'text-rose-600 dark:text-rose-400' : 'text-[#7E9FA8] dark:text-[#789B96]'
                   }`}>
                     {symptom.isRedFlag ? '⚠️ Urgent Warning' : symptom.category}
                   </span>
                   <span className="text-xs font-bold block">{symptom.label}</span>
-                  <span className="text-[11px] text-stone-500 mt-0.5 block leading-relaxed">{symptom.description}</span>
+                  <span className="text-[11px] text-[#476A76] dark:text-[#A9C5C1] mt-0.5 block leading-relaxed">
+                    {symptom.description}
+                  </span>
                 </div>
                 {isSelected && (
-                  <CheckCircle2 className={`w-4 h-4 shrink-0 mt-0.5 ${symptom.isRedFlag ? 'text-rose-600' : 'text-indigo-600'}`} />
+                  <CheckCircle2 className={`w-4 h-4 shrink-0 mt-0.5 ${symptom.isRedFlag ? 'text-rose-600' : 'text-[#168B83] dark:text-[#64D8C1]'}`} />
                 )}
               </button>
             );
@@ -228,16 +231,18 @@ export const SymptomChecker: React.FC = () => {
         </div>
 
         {/* Step 2: How long and how strong? */}
-        <div className="pt-4 border-t border-stone-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="pt-4 border-t border-[#D8ECE7] dark:border-[#234E54] grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-stone-700 mb-1">How long have you had this?</label>
+            <label className="block text-xs font-bold text-[#0B343B] dark:text-[#EAF7F4] mb-1">
+              How long have you had this?
+            </label>
             <select
               value={duration}
               onChange={(e) => {
                 setDuration(e.target.value);
                 setAssessmentRun(false);
               }}
-              className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs font-medium outline-none focus:border-indigo-600 bg-white"
+              className="w-full px-3 py-2 border border-[#D8ECE7] dark:border-[#234E54] bg-[#F7FCFA] dark:bg-[#122B2F] text-[#0B343B] dark:text-[#EAF7F4] rounded-xl text-xs font-medium outline-none focus:border-[#168B83]"
             >
               <option value="< 24 Hours">Started today (&lt; 24 Hours ago)</option>
               <option value="1-3 Days">1 to 3 Days</option>
@@ -247,14 +252,16 @@ export const SymptomChecker: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-stone-700 mb-1">How strong does it feel?</label>
+            <label className="block text-xs font-bold text-[#0B343B] dark:text-[#EAF7F4] mb-1">
+              How strong does it feel?
+            </label>
             <select
               value={severity}
               onChange={(e) => {
                 setSeverity(e.target.value);
                 setAssessmentRun(false);
               }}
-              className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs font-medium outline-none focus:border-indigo-600 bg-white"
+              className="w-full px-3 py-2 border border-[#D8ECE7] dark:border-[#234E54] bg-[#F7FCFA] dark:bg-[#122B2F] text-[#0B343B] dark:text-[#EAF7F4] rounded-xl text-xs font-medium outline-none focus:border-[#168B83]"
             >
               <option value="Mild">Mild (Noticeable, but I can go about my day)</option>
               <option value="Moderate">Moderate (Uncomfortable, makes it hard to focus)</option>
@@ -268,7 +275,7 @@ export const SymptomChecker: React.FC = () => {
           <button
             onClick={handleRunAssessment}
             disabled={selectedSymptoms.length === 0}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 disabled:opacity-40 transition-all hover:scale-105"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#168B83] hover:bg-[#12726B] text-white font-bold text-xs shadow-md shadow-[#168B83]/20 disabled:opacity-40 transition-all hover:scale-105"
           >
             <span>Check My Symptoms</span>
             <ArrowRight className="w-4 h-4" />
@@ -278,32 +285,32 @@ export const SymptomChecker: React.FC = () => {
 
       {/* Assessment Summary in Simple English */}
       {assessmentRun && (
-        <div className="bg-white rounded-3xl p-6 md:p-8 border border-stone-200/80 shadow-2xs space-y-4">
-          <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
-            <Info className="w-5 h-5 text-indigo-600" />
+        <div className="bg-white dark:bg-[#17363A] rounded-3xl p-6 md:p-8 border border-[#D8ECE7] dark:border-[#234E54] shadow-xs space-y-4">
+          <h3 className="text-base font-bold text-[#0B343B] dark:text-[#EAF7F4] flex items-center gap-2">
+            <Info className="w-5 h-5 text-[#168B83] dark:text-[#64D8C1]" />
             <span>Helpful Guidance & Recommended Next Steps</span>
           </h3>
 
-          <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 text-xs text-stone-700 leading-relaxed space-y-2">
+          <div className="p-4 rounded-2xl bg-[#F7FCFA] dark:bg-[#122B2F] border border-[#D8ECE7] dark:border-[#234E54] text-xs text-[#183447] dark:text-[#EAF7F4] leading-relaxed space-y-2">
             <p>
               You selected <strong>{selectedSymptoms.length} symptom(s)</strong> that have been present for <strong>{duration}</strong> with <strong>{severity}</strong> discomfort.
             </p>
             {hasRedFlag ? (
-              <p className="text-rose-700 font-bold">
+              <p className="text-rose-700 dark:text-rose-300 font-bold">
                 ⚠️ Urgent Advice: Please visit the nearest hospital or emergency room right away, or call 112 / 108.
               </p>
             ) : severity === 'Severe' || duration === 'Chronic (> 2 Weeks)' ? (
-              <p className="text-amber-800 font-semibold">
+              <p className="text-amber-800 dark:text-amber-300 font-semibold">
                 Advice: Because this has lasted for several days or feels strong, we recommend booking a routine appointment with your local doctor or clinic.
               </p>
             ) : (
-              <p className="text-emerald-800 font-medium">
+              <p className="text-emerald-800 dark:text-emerald-300 font-medium">
                 Advice: For mild everyday symptoms, prioritize drinking warm water, resting, eating nourishing meals, and getting 8 hours of sleep. If you feel worse over the next 24 to 48 hours, consult a healthcare professional.
               </p>
             )}
           </div>
 
-          <div className="pt-2 text-[11px] text-stone-400 italic">
+          <div className="pt-2 text-[11px] text-[#7E9FA8] dark:text-[#789B96] italic">
             Friendly Reminder: This symptom tool provides educational guidance only. It is not an official medical diagnosis.
           </div>
         </div>
