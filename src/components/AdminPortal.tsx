@@ -1,11 +1,12 @@
-// Module L: Role-Protected Admin Governance Portal
-// Clean layout, telemetry, user directory, and condition catalog CMS
+// Module L: Role-Protected Admin Governance Portal (SQLite / Turso Backend)
+// Clean layout, telemetry, live registered user directory, and health catalog CMS
 // Lead Architect: Aryan More
 
-import React, { useState } from 'react';
-import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, Plus, Trash2, Shield, Users, Activity, Pill, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useHealthData } from '../context/HealthDataContext';
+import { api } from '../lib/api';
 
 export const AdminPortal: React.FC = () => {
   const { profile, isAdmin } = useAuth();
@@ -13,13 +14,21 @@ export const AdminPortal: React.FC = () => {
     diseaseLibrary,
     addDiseaseItem,
     deleteDiseaseItem,
-    waterLogs,
-    weightLogs,
-    medications,
   } = useHealthData();
 
   const [activeSection, setActiveSection] = useState<'telemetry' | 'catalog' | 'users'>('telemetry');
   const [modalOpen, setModalOpen] = useState(false);
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [overview, setOverview] = useState<any>({
+    totalUsers: 1,
+    totalWaterLogs: 0,
+    totalBpLogs: 0,
+    totalMedications: 0,
+    serverStatus: 'Optimal',
+    database: 'SQLite (Turso Compatible)',
+  });
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   // New Disease Form
   const [newTitle, setNewTitle] = useState('');
@@ -30,13 +39,29 @@ export const AdminPortal: React.FC = () => {
   const [newTreatment, setNewTreatment] = useState('Consult physician for individualized treatment.');
   const [newEmergency, setNewEmergency] = useState('Seek immediate emergency room evaluation if acute onset occurs.');
 
-  // User Directory
-  const [usersList, setUsersList] = useState([
-    { id: profile?.id || 'demo-user-aryan', name: profile?.full_name || 'Aryan More', email: 'aryan@carenova.health', role: 'admin', active: true },
-    { id: 'u-2', name: 'Dr. Priya Sharma', email: 'priya.sharma@healthclinic.org', role: 'user', active: true },
-    { id: 'u-3', name: 'Rahul Verma', email: 'rahul.v@domain.com', role: 'user', active: true },
-    { id: 'u-4', name: 'Ananya Sen', email: 'ananya.sen@example.com', role: 'user', active: false },
-  ]);
+  // Fetch real users and overview from backend
+  const loadAdminData = async () => {
+    try {
+      setLoadingUsers(true);
+      const [ovData, usersData] = await Promise.all([
+        api.admin.getOverview().catch(() => null),
+        api.admin.getUsers().catch(() => ({ users: [] })),
+      ]);
+
+      if (ovData) setOverview(ovData);
+      if (usersData?.users) setUsersList(usersData.users);
+    } catch (err) {
+      console.error('Failed to load admin telemetry:', err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadAdminData();
+    }
+  }, [isAdmin]);
 
   if (!isAdmin) {
     return (
@@ -44,7 +69,7 @@ export const AdminPortal: React.FC = () => {
         <AlertTriangle className="w-12 h-12 text-rose-600 mx-auto mb-2" />
         <h2 className="text-lg font-bold">Administrator Role Required</h2>
         <p className="text-xs text-rose-600 mt-1">
-          This portal is protected by database Row Level Security policies. Only accounts with verified role 'admin' can access governance settings.
+          This portal is protected by role-based authorization. Only accounts with verified role 'admin' in SQLite can access governance settings.
         </p>
       </div>
     );
@@ -71,10 +96,16 @@ export const AdminPortal: React.FC = () => {
     setModalOpen(false);
   };
 
-  const toggleUserStatus = (userId: string) => {
-    setUsersList(
-      usersList.map((u) => (u.id === userId ? { ...u, active: !u.active } : u))
-    );
+  const handleToggleRole = async (userId: string, currentRole: string) => {
+    const nextRole = currentRole === 'admin' ? 'user' : 'admin';
+    try {
+      await api.admin.updateUserRole(userId, nextRole);
+      setFeedback(`User role changed to ${nextRole}`);
+      setTimeout(() => setFeedback(null), 3000);
+      loadAdminData();
+    } catch (err: any) {
+      alert(err.message || 'Could not update role.');
+    }
   };
 
   return (
@@ -89,7 +120,7 @@ export const AdminPortal: React.FC = () => {
             <span className="text-xs text-stone-400">Logged in as: {profile?.full_name}</span>
           </div>
           <h1 className="text-2xl font-bold text-stone-900 tracking-tight mt-1">
-            System Telemetry & Content Management
+            System Telemetry & User Management
           </h1>
         </div>
 
@@ -121,34 +152,53 @@ export const AdminPortal: React.FC = () => {
         </div>
       </div>
 
+      {feedback && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <span>{feedback}</span>
+        </div>
+      )}
+
       {/* Section 1: Telemetry */}
       {activeSection === 'telemetry' && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-2xs">
-              <span className="text-xs text-stone-500 font-medium">Platform Users</span>
-              <div className="text-2xl font-black text-stone-900 mt-2">1,248</div>
-              <span className="text-[10px] text-emerald-600 font-semibold">+14% this month</span>
-            </div>
-
-            <div className="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-2xs">
-              <span className="text-xs text-stone-500 font-medium">Logged Health Entries</span>
-              <div className="text-2xl font-black text-stone-900 mt-2">
-                {waterLogs.length + weightLogs.length + 84}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-stone-500 font-medium">Registered Users</span>
+                <Users className="w-4 h-4 text-indigo-600" />
               </div>
-              <span className="text-[10px] text-indigo-600 font-semibold">Protected with Supabase RLS</span>
+              <div className="text-2xl font-black text-stone-900 mt-2">{overview.totalUsers}</div>
+              <span className="text-[10px] text-indigo-600 font-semibold">Active in SQLite Database</span>
             </div>
 
             <div className="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-2xs">
-              <span className="text-xs text-stone-500 font-medium">Prescriptions Tracked</span>
-              <div className="text-2xl font-black text-stone-900 mt-2">{medications.length}</div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-stone-500 font-medium">Hydration Entries</span>
+                <Activity className="w-4 h-4 text-sky-600" />
+              </div>
+              <div className="text-2xl font-black text-stone-900 mt-2">
+                {overview.totalWaterLogs}
+              </div>
+              <span className="text-[10px] text-emerald-600 font-semibold">Logged Across Users</span>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-stone-500 font-medium">Prescriptions Tracked</span>
+                <Pill className="w-4 h-4 text-violet-600" />
+              </div>
+              <div className="text-2xl font-black text-stone-900 mt-2">{overview.totalMedications}</div>
               <span className="text-[10px] text-violet-600 font-semibold">Active Schedules</span>
             </div>
 
             <div className="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-2xs">
-              <span className="text-xs text-stone-500 font-medium">Platform Health</span>
-              <div className="text-2xl font-black text-emerald-600 mt-2">Operational</div>
-              <span className="text-[10px] text-stone-400 font-semibold">Netlify CDN + Supabase</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-stone-500 font-medium">Database Engine</span>
+                <Shield className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div className="text-xl font-black text-emerald-600 mt-2">SQLite</div>
+              <span className="text-[10px] text-stone-400 font-semibold">{overview.database}</span>
             </div>
           </div>
         </div>
@@ -200,7 +250,20 @@ export const AdminPortal: React.FC = () => {
       {/* Section 3: Users */}
       {activeSection === 'users' && (
         <div className="bg-white rounded-3xl p-6 border border-stone-200/80 shadow-2xs">
-          <h3 className="text-base font-bold text-stone-900 mb-4">User Directory</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-base font-bold text-stone-900">Registered Users Directory</h3>
+              <p className="text-xs text-stone-400">Total accounts saved in SQLite: {usersList.length}</p>
+            </div>
+            <button
+              onClick={loadAdminData}
+              disabled={loadingUsers}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 hover:bg-stone-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingUsers ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+          </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -209,14 +272,15 @@ export const AdminPortal: React.FC = () => {
                   <th className="py-2.5">User</th>
                   <th className="py-2.5">Email</th>
                   <th className="py-2.5">Role</th>
-                  <th className="py-2.5">Status</th>
-                  <th className="py-2.5 text-right">Action</th>
+                  <th className="py-2.5">Blood Group</th>
+                  <th className="py-2.5">Joined</th>
+                  <th className="py-2.5 text-right">Role Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100 font-medium">
                 {usersList.map((usr) => (
                   <tr key={usr.id} className="hover:bg-stone-50">
-                    <td className="py-3 font-bold text-stone-900">{usr.name}</td>
+                    <td className="py-3 font-bold text-stone-900">{usr.full_name}</td>
                     <td className="py-3 text-stone-500">{usr.email}</td>
                     <td className="py-3">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -225,21 +289,22 @@ export const AdminPortal: React.FC = () => {
                         {usr.role.toUpperCase()}
                       </span>
                     </td>
-                    <td className="py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        usr.active ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {usr.active ? 'Active' : 'Suspended'}
-                      </span>
+                    <td className="py-3 text-stone-600">
+                      {usr.blood_group || '—'}
+                    </td>
+                    <td className="py-3 text-stone-400">
+                      {usr.created_at ? new Date(usr.created_at).toLocaleDateString() : '—'}
                     </td>
                     <td className="py-3 text-right">
-                      {usr.id !== profile?.id && (
+                      {usr.id !== profile?.id ? (
                         <button
-                          onClick={() => toggleUserStatus(usr.id)}
+                          onClick={() => handleToggleRole(usr.id, usr.role)}
                           className="px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-100"
                         >
-                          {usr.active ? 'Suspend' : 'Activate'}
+                          {usr.role === 'admin' ? 'Revoke Admin' : 'Make Admin'}
                         </button>
+                      ) : (
+                        <span className="text-[11px] text-stone-400 italic">Current Admin</span>
                       )}
                     </td>
                   </tr>
@@ -278,44 +343,22 @@ export const AdminPortal: React.FC = () => {
                   <option value="Cardiology">Heart & Blood Vessels</option>
                   <option value="Endocrinology">Hormones & Diabetes</option>
                   <option value="Pulmonology">Lungs & Breathing</option>
-                  <option value="Gastroenterology">Stomach & Digestion</option>
-                  <option value="Neurology">Brain & Nerves</option>
-                  <option value="Mental Health">Mental Wellbeing</option>
+                  <option value="Mental Health">Mental Health & Mood</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1">Overview</label>
                 <textarea
-                  rows={2}
                   required
+                  rows={2}
                   value={newOverview}
                   onChange={(e) => setNewOverview(e.target.value)}
                   className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs outline-none focus:border-indigo-600"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">Symptoms (comma separated)</label>
-                <input
-                  type="text"
-                  value={newSymptoms}
-                  onChange={(e) => setNewSymptoms(e.target.value)}
-                  className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs outline-none focus:border-indigo-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">Treatment / Advice</label>
-                <input
-                  type="text"
-                  value={newTreatment}
-                  onChange={(e) => setNewTreatment(e.target.value)}
-                  className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs outline-none focus:border-indigo-600"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-stone-100">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
@@ -325,7 +368,7 @@ export const AdminPortal: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700"
                 >
                   Save Condition
                 </button>

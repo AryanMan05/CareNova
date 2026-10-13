@@ -11,17 +11,14 @@ node_modules
 dist
 dist-ssr
 *.local
+# Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Environment
 .env
 .env.*
 !.env.example
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+server/.env

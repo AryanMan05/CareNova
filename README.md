@@ -47,24 +47,41 @@ Open `http://localhost:5173` in your browser.
 ### 2. Environment Variables (.env)
 Create a `.env` file in the project root:
 ```env
-VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_API_URL=https://your-backend.onrender.com
 ```
+
+---
+
+## 🚀 Render Backend Deployment
+
+Deploy the Node.js / Express SQLite backend to Render:
+1. In Render Dashboard, click **New +** > **Web Service**.
+2. Connect this repository (`Care-Connect`).
+3. Set service details:
+   - **Root Directory:** `server`
+   - **Runtime:** `Node`
+   - **Build Command:** `npm install`
+   - **Start Command:** `node index.js`
+   - **Instance Type:** `Free`
+4. In **Environment Variables**, add:
+   - `PORT`: `5000`
+   - `JWT_SECRET`: *your-secure-jwt-secret*
+   - `TURSO_DATABASE_URL`: `libsql://carenova-db-yourusername.turso.io`
+   - `TURSO_AUTH_TOKEN`: *your-turso-token*
 
 ---
 
 ## 🌐 Netlify Production Deployment
 
-CareNova is pre-configured for 1-click Netlify deployment with zero-404 SPA routing:
-- Build command: `npm run build`
-- Publish directory: `dist`
+CareNova frontend is pre-configured for 1-click Netlify deployment:
+- **Build command:** `npm run build`
+- **Publish directory:** `dist`
 - Client redirect rules are configured in [`public/_redirects`](./public/_redirects) and [`netlify.toml`](./netlify.toml).
 
 In Netlify Dashboard:
 1. Link your GitHub repository.
 2. Go to **Site Configuration > Environment Variables** and add:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_API_URL`: Your Render backend URL (e.g. `https://carenova-backend.onrender.com`)
 3. Trigger deploy.
 
 ---
