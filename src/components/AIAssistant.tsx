@@ -4,10 +4,24 @@
 // Lead Architect: Aryan More
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
+import {
+  Send,
+  Bot,
+  User,
+  Sparkles,
+  AlertCircle,
+  RefreshCw,
+  Activity,
+  Settings,
+  CheckCircle2,
+  Globe,
+  ExternalLink,
+  X,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useHealthData } from '../context/HealthDataContext';
 import { askCareNovaAI, ChatHistoryMessage } from '../services/aiAssistant';
+import { api, getApiBaseUrl, setApiBaseUrl } from '../lib/api';
 
 interface ChatMessage {
   id: string;
@@ -40,6 +54,57 @@ export const AIAssistant: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Backend Connection & Diagnostics State
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [backendUrlInput, setBackendUrlInput] = useState(getApiBaseUrl());
+  const [backendStatus, setBackendStatus] = useState<{
+    checked: boolean;
+    online: boolean;
+    geminiConfigured: boolean;
+    provider?: string;
+    keyLength?: number;
+    error?: string;
+    checking: boolean;
+  }>({
+    checked: false,
+    online: false,
+    geminiConfigured: false,
+    checking: false,
+  });
+
+  const checkBackendHealth = async () => {
+    setBackendStatus((prev) => ({ ...prev, checking: true, error: undefined }));
+    try {
+      const res = await api.ai.getStatus();
+      setBackendStatus({
+        checked: true,
+        online: true,
+        geminiConfigured: Boolean(res?.gemini?.detected || res?.aiConfigured),
+        provider: res?.provider || 'google-gemini',
+        keyLength: res?.gemini?.keyLength,
+        checking: false,
+      });
+    } catch (err: any) {
+      setBackendStatus({
+        checked: true,
+        online: false,
+        geminiConfigured: false,
+        error: err?.message || 'Could not connect to backend',
+        checking: false,
+      });
+    }
+  };
+
+  useEffect(() => {
+    checkBackendHealth();
+  }, []);
+
+  const handleSaveBackendUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setApiBaseUrl(backendUrlInput);
+    await checkBackendHealth();
+  };
 
   const quickPrompts = [
     'How can I lower my blood pressure naturally?',
@@ -165,16 +230,54 @@ export const AIAssistant: React.FC = () => {
           </div>
         </div>
 
-        {/* Options */}
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
+        {/* Options & Diagnostics */}
+        <div className="flex items-center gap-2.5">
+          {/* Live AI Engine Status Pill */}
+          <button
+            onClick={() => {
+              setBackendUrlInput(getApiBaseUrl());
+              setShowConfigModal(true);
+            }}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition-all border ${
+              backendStatus.online && backendStatus.geminiConfigured
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100'
+                : backendStatus.checking
+                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/60'
+                : backendStatus.online && !backendStatus.geminiConfigured
+                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/60 hover:bg-amber-100'
+                : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/60 hover:bg-rose-100'
+            }`}
+            title="Click to check or configure Render backend URL"
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                backendStatus.online && backendStatus.geminiConfigured
+                  ? 'bg-emerald-500 animate-pulse'
+                  : backendStatus.checking
+                  ? 'bg-amber-500 animate-ping'
+                  : 'bg-rose-500'
+              }`}
+            />
+            <span>
+              {backendStatus.checking
+                ? 'Connecting...'
+                : backendStatus.online && backendStatus.geminiConfigured
+                ? 'AI Live (Gemini)'
+                : backendStatus.online && !backendStatus.geminiConfigured
+                ? 'Key Missing on Render'
+                : 'Backend Offline'}
+            </span>
+            <Settings className="w-3 h-3 opacity-60 ml-0.5" />
+          </button>
+
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={includeContext}
               onChange={(e) => setIncludeContext(e.target.checked)}
               className="w-4 h-4 text-[#168B83] rounded border-[#D8ECE7] dark:border-[#234E54] focus:ring-[#168B83]"
             />
-            <span className="text-xs font-semibold text-[#476A76] dark:text-[#A9C5C1]">Use My Health Context</span>
+            <span className="text-xs font-semibold text-[#476A76] dark:text-[#A9C5C1] hidden sm:inline">Use Context</span>
           </label>
 
           <button
@@ -292,6 +395,138 @@ export const AIAssistant: React.FC = () => {
           <span>CareNova by Aryan More</span>
         </div>
       </form>
+
+      {/* Backend Connection Diagnostics & Settings Modal */}
+      {showConfigModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-[#17363A] rounded-2xl border border-[#D8ECE7] dark:border-[#234E54] shadow-2xl max-w-md w-full p-6 text-[#183447] dark:text-[#EAF7F4] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#D8ECE7] dark:border-[#234E54] pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#E0F7F1] dark:bg-[#163B38] text-[#168B83] dark:text-[#64D8C1] flex items-center justify-center">
+                  <Activity className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#0B343B] dark:text-white">AI Backend Connection</h3>
+                  <p className="text-[11px] text-[#7E9FA8] dark:text-[#789B96]">Verify and configure your live Render server</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowConfigModal(false)}
+                className="p-1 rounded-lg text-[#7E9FA8] hover:text-[#0B343B] dark:hover:text-white hover:bg-stone-100 dark:hover:bg-[#10434C]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Diagnostic Status Box */}
+            <div className={`p-3.5 rounded-xl border text-xs space-y-2 ${
+              backendStatus.online && backendStatus.geminiConfigured
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200'
+                : backendStatus.online && !backendStatus.geminiConfigured
+                ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200'
+                : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60 text-rose-900 dark:text-rose-200'
+            }`}>
+              <div className="flex items-center justify-between font-bold">
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${
+                    backendStatus.online && backendStatus.geminiConfigured
+                      ? 'bg-emerald-500'
+                      : backendStatus.online
+                      ? 'bg-amber-500'
+                      : 'bg-rose-500'
+                  }`} />
+                  Server Status:
+                </span>
+                <span>
+                  {backendStatus.checking
+                    ? 'Testing connection...'
+                    : backendStatus.online
+                    ? 'Connected & Online'
+                    : 'Unreachable / Sleeping'}
+                </span>
+              </div>
+
+              <div className="text-[11px] space-y-1 pt-1 border-t border-black/10 dark:border-white/10">
+                <div className="flex justify-between">
+                  <span className="text-[#476A76] dark:text-[#A9C5C1]">Target Server:</span>
+                  <span className="font-mono text-[10px] truncate max-w-[200px]" title={getApiBaseUrl() || 'http://localhost:5000'}>
+                    {getApiBaseUrl() || 'http://localhost:5000 (Local)'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#476A76] dark:text-[#A9C5C1]">Gemini API Key:</span>
+                  <span className="font-semibold">
+                    {backendStatus.geminiConfigured
+                      ? `Active (${backendStatus.keyLength} chars)`
+                      : backendStatus.online
+                      ? 'Missing on Render'
+                      : 'Unknown (Backend Offline)'}
+                  </span>
+                </div>
+                {backendStatus.error && (
+                  <p className="text-[10px] text-rose-600 dark:text-rose-400 font-mono mt-1">
+                    {backendStatus.error}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* URL Configuration Form */}
+            <form onSubmit={handleSaveBackendUrl} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#0B343B] dark:text-white mb-1">
+                  Render Backend URL
+                </label>
+                <div className="relative">
+                  <Globe className="w-3.5 h-3.5 absolute left-3 top-3 text-[#7E9FA8]" />
+                  <input
+                    type="url"
+                    value={backendUrlInput}
+                    onChange={(e) => setBackendUrlInput(e.target.value)}
+                    placeholder="https://carenova-backend.onrender.com"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#D8ECE7] dark:border-[#234E54] bg-[#F7FCFA] dark:bg-[#122B2F] text-xs text-[#0B343B] dark:text-white outline-none focus:border-[#168B83]"
+                  />
+                </div>
+                <p className="text-[10px] text-[#7E9FA8] dark:text-[#789B96] mt-1">
+                  Enter your live Render web service URL. It will be saved in your browser and used for all AI and health requests.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={backendStatus.checking}
+                  className="flex-1 py-2 px-3 rounded-xl bg-[#168B83] hover:bg-[#12726B] text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${backendStatus.checking ? 'animate-spin' : ''}`} />
+                  <span>{backendStatus.checking ? 'Testing...' : 'Save & Test Connection'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApiBaseUrl('');
+                    setBackendUrlInput('');
+                    checkBackendHealth();
+                  }}
+                  className="py-2 px-3 rounded-xl border border-[#D8ECE7] dark:border-[#234E54] hover:bg-stone-100 dark:hover:bg-[#10434C] text-[11px] font-semibold text-[#476A76] dark:text-[#A9C5C1] transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+
+            {/* Quick Tips */}
+            <div className="p-3 bg-stone-50 dark:bg-[#122B2F] rounded-xl border border-[#D8ECE7] dark:border-[#234E54] text-[11px] text-[#476A76] dark:text-[#A9C5C1] space-y-1">
+              <p className="font-semibold text-[#0B343B] dark:text-white">Tips for Live Render Deployment:</p>
+              <ul className="list-disc pl-4 space-y-0.5 text-[10px]">
+                <li><strong>Render Free Tier Cold Start:</strong> Render spins down inactive instances. It takes 30–50s to wake up on the first request.</li>
+                <li><strong>GEMINI_API_KEY:</strong> In Render Dashboard &gt; Environment Variables, add <code>GEMINI_API_KEY</code> from Google AI Studio.</li>
+                <li><strong>Netlify Variable:</strong> In Netlify Dashboard &gt; Environment Variables, set <code>VITE_API_URL</code> to your Render URL.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

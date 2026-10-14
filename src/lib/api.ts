@@ -2,7 +2,51 @@
 // Connects to Node.js / Express backend with SQLite & Turso storage
 // Lead Architect: Aryan More
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const BACKEND_URL_KEY = 'carenova_backend_url';
+
+export function getApiBaseUrl(): string {
+  // 1. Manually saved backend URL in localStorage (persists across reloads/devices)
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem(BACKEND_URL_KEY);
+    if (saved && saved.trim()) {
+      return saved.trim().replace(/\/+$/, '');
+    }
+  }
+
+  // 2. Build-time environment variable (configured in Netlify / Vite)
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, '');
+  }
+
+  // 3. Localhost development fallback
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:5000';
+    }
+  }
+
+  // 4. Default: empty string (relative path for Netlify reverse-proxy if configured)
+  return '';
+}
+
+export function setApiBaseUrl(url: string): void {
+  if (typeof window !== 'undefined') {
+    const clean = (url || '').trim().replace(/\/+$/, '');
+    if (!clean) {
+      localStorage.removeItem(BACKEND_URL_KEY);
+    } else {
+      localStorage.setItem(BACKEND_URL_KEY, clean);
+    }
+  }
+}
+
+export function isCustomBackendConfigured(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean(localStorage.getItem(BACKEND_URL_KEY));
+}
+
 const TOKEN_KEY = 'carenova_auth_token';
 
 export function getAuthToken(): string | null {
@@ -28,10 +72,21 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const baseUrl = getApiBaseUrl();
+  const targetUrl = baseUrl ? `${baseUrl}${endpoint}` : endpoint;
+
+  let response: Response;
+  try {
+    response = await fetch(targetUrl, {
+      ...options,
+      headers,
+    });
+  } catch (networkErr: any) {
+    console.error(`CareNova API network error [${targetUrl}]:`, networkErr);
+    throw new Error(
+      `Could not connect to backend at "${baseUrl || 'relative'}" (${networkErr.message || 'NetworkError'}). Please ensure your Render backend is running.`
+    );
+  }
 
   const data = await response.json().catch(() => ({}));
 
@@ -195,6 +250,17 @@ export const api = {
 
   // AI Health Assistant
   ai: {
+    async getStatus() {
+      return request<{
+        status: string;
+        version: string;
+        aiConfigured: boolean;
+        provider: string;
+        gemini: { detected: boolean; keyLength: number; keyPrefix: string | null; models: string[] };
+        openai: { detected: boolean; keyLength: number };
+      }>('/api/ai/status');
+    },
+
     async chat(prompt: string, conversation: any[] = [], context: string = '') {
       return request<{ configured: boolean; reply: string; provider?: string }>('/api/ai/chat', {
         method: 'POST',

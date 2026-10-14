@@ -6,10 +6,33 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { db, initDatabase } from './db.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from server/.env, root .env, or runtime environment
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config();
+
+export function getGeminiApiKey() {
+  const raw =
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GEMINI_KEY ||
+    process.env.GOOGLE_GENAI_API_KEY ||
+    '';
+  return String(raw).trim().replace(/^["']|["']$/g, '');
+}
+
+export function getOpenAIApiKey() {
+  const raw = process.env.OPENAI_API_KEY || '';
+  return String(raw).trim().replace(/^["']|["']$/g, '');
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -762,6 +785,88 @@ app.delete('/api/admin/disease-library/:id', authenticate, requireAdmin, async (
 // -------------------------------------------------------------
 // Real Conversational AI Health Assistant (Gemini & OpenAI)
 // -------------------------------------------------------------
+
+/**
+ * Builds and sanitizes multi-turn contents for Google Gemini API.
+ * Google Gemini v1beta requirements:
+ * 1. Must start with role: 'user' (cannot start with 'model' e.g. default welcome greeting)
+ * 2. Roles must strictly alternate: user -> model -> user -> model -> user
+ * 3. Cannot have consecutive duplicate roles (merges text if consecutive)
+ * 4. Must end with role: 'user'
+ */
+function buildGeminiContents(conversation, cleanPrompt) {
+  const rawTurns = [];
+
+  if (Array.isArray(conversation)) {
+    // Retain up to last 10 turns of history
+    for (const msg of conversation.slice(-10)) {
+      if (!msg || !msg.text) continue;
+      const text = String(msg.text).trim();
+      if (!text) continue;
+      const role = msg.role === 'assistant' || msg.role === 'model' ? 'model' : 'user';
+      rawTurns.push({ role, text });
+    }
+  }
+
+  // Append current user message
+  rawTurns.push({ role: 'user', text: cleanPrompt });
+
+  // Gemini Rule 1: First turn MUST be 'user'. Drop any leading assistant/model greeting.
+  while (rawTurns.length > 0 && rawTurns[0].role === 'model') {
+    rawTurns.shift();
+  }
+
+  // Gemini Rule 2: Strict alternation. Merge consecutive same-role messages.
+  const alternating = [];
+  for (const turn of rawTurns) {
+    if (alternating.length === 0) {
+      alternating.push({ role: turn.role, text: turn.text });
+    } else {
+      const prev = alternating[alternating.length - 1];
+      if (prev.role === turn.role) {
+        prev.text = `${prev.text}\n\n${turn.text}`;
+      } else {
+        alternating.push({ role: turn.role, text: turn.text });
+      }
+    }
+  }
+
+  // Gemini Rule 3: Guarantee at least one valid user turn
+  if (alternating.length === 0 || alternating[alternating.length - 1].role !== 'user') {
+    alternating.push({ role: 'user', text: cleanPrompt });
+  }
+
+  return alternating.map((turn) => ({
+    role: turn.role,
+    parts: [{ text: turn.text }],
+  }));
+}
+
+// AI Diagnostic & Status Endpoint
+app.get('/api/ai/status', (req, res) => {
+  const geminiKey = getGeminiApiKey();
+  const openaiKey = getOpenAIApiKey();
+  const isConfigured = Boolean(geminiKey || openaiKey);
+
+  res.json({
+    status: 'online',
+    version: '2.1.0',
+    aiConfigured: isConfigured,
+    provider: geminiKey ? 'google-gemini' : openaiKey ? 'openai' : 'none',
+    gemini: {
+      detected: Boolean(geminiKey),
+      keyLength: geminiKey ? geminiKey.length : 0,
+      keyPrefix: geminiKey ? `${geminiKey.substring(0, 4)}...${geminiKey.slice(-4)}` : null,
+      models: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'],
+    },
+    openai: {
+      detected: Boolean(openaiKey),
+      keyLength: openaiKey ? openaiKey.length : 0,
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.post('/api/ai/chat', async (req, res) => {
   try {
     const { prompt, conversation = [], context = '' } = req.body;
@@ -771,8 +876,8 @@ app.post('/api/ai/chat', async (req, res) => {
     }
 
     const cleanPrompt = prompt.trim();
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const geminiKey = getGeminiApiKey();
+    const openaiKey = getOpenAIApiKey();
 
     if (!geminiKey && !openaiKey) {
       return res.json({
@@ -804,30 +909,10 @@ Your core objectives:
 8. Clinical Safety & Emergency Rules: Never invent medical diagnoses or claim uncertain health info as definite fact. If the user describes acute emergency symptoms (such as crushing chest pain, difficulty breathing, slurred speech, sudden paralysis, severe bleeding, or suicidal distress), urge them to immediately seek emergency care by calling 112 or 108 in India or their local emergency number.
 ${context ? `\nUser Health Profile Context:\n${context}` : ''}`;
 
-    // 1. Google Gemini Provider (Free Tier Available on Google AI Studio)
+    // 1. Google Gemini Provider
     if (geminiKey) {
-      const contents = [];
-
-      // Add recent conversation history (up to last 10 turns)
-      if (Array.isArray(conversation)) {
-        const recent = conversation.slice(-10);
-        for (const msg of recent) {
-          if (msg && msg.text) {
-            contents.push({
-              role: msg.role === 'assistant' ? 'model' : 'user',
-              parts: [{ text: String(msg.text) }],
-            });
-          }
-        }
-      }
-
-      // Add current message
-      contents.push({
-        role: 'user',
-        parts: [{ text: cleanPrompt }],
-      });
-
-      const modelsToTry = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+      const contents = buildGeminiContents(conversation, cleanPrompt);
+      const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
       let geminiResponse = null;
       let lastGeminiError = null;
 
@@ -856,10 +941,32 @@ ${context ? `\nUser Health Profile Context:\n${context}` : ''}`;
             break;
           } else {
             const errBody = await apiRes.json().catch(() => ({}));
-            lastGeminiError = errBody?.error?.message || `HTTP ${apiRes.status}`;
+            lastGeminiError = errBody?.error?.message || `HTTP ${apiRes.status} (${apiRes.statusText})`;
+            console.warn(`[Gemini API] Model ${model} returned error:`, lastGeminiError);
+
+            // Fallback: If model complains about system_instruction, retry without it by prepending to user prompt
+            if (lastGeminiError.toLowerCase().includes('system_instruction') || lastGeminiError.toLowerCase().includes('not supported')) {
+              const fallbackContents = buildGeminiContents(conversation, `${systemInstruction}\n\nUser Question:\n${cleanPrompt}`);
+              const fallbackRes = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    contents: fallbackContents,
+                    generationConfig: { temperature: 0.7, maxOutputTokens: 1000 },
+                  }),
+                }
+              );
+              if (fallbackRes.ok) {
+                geminiResponse = await fallbackRes.json();
+                break;
+              }
+            }
           }
         } catch (fetchErr) {
           lastGeminiError = fetchErr.message;
+          console.warn(`[Gemini API] Network fetch error with ${model}:`, fetchErr.message);
         }
       }
 
@@ -874,7 +981,7 @@ ${context ? `\nUser Health Profile Context:\n${context}` : ''}`;
 
       if (lastGeminiError && !openaiKey) {
         return res.status(502).json({
-          error: `Google Gemini API returned: ${lastGeminiError}. Please verify your GEMINI_API_KEY.`,
+          error: `Google Gemini API returned: ${lastGeminiError}. Please check your GEMINI_API_KEY.`,
         });
       }
     }
@@ -939,8 +1046,18 @@ ${context ? `\nUser Health Profile Context:\n${context}` : ''}`;
 async function startServer() {
   try {
     await initDatabase();
+    const geminiKey = getGeminiApiKey();
+    const openaiKey = getOpenAIApiKey();
+
     app.listen(PORT, () => {
       console.log(`[CareNova Server] Running on http://localhost:${PORT}`);
+      if (geminiKey) {
+        console.log(`[CareNova AI] Google Gemini Key: DETECTED (${geminiKey.length} chars) - Live AI Active`);
+      } else if (openaiKey) {
+        console.log(`[CareNova AI] OpenAI Key: DETECTED (${openaiKey.length} chars) - Live AI Active`);
+      } else {
+        console.log(`[CareNova AI] No AI API Key detected - Setup prompt active until GEMINI_API_KEY is added`);
+      }
     });
   } catch (err) {
     console.error('[CareNova Server] Failed to initialize:', err);

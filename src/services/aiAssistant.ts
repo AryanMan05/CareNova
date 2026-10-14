@@ -2,7 +2,7 @@
 // Requirement 10.1 & Improvement 2: Multi-turn conversations, relevant context-aware replies, simple friendly language, no repetitive loops
 // Lead Architect: Aryan More
 
-import { api } from '../lib/api';
+import { api, getApiBaseUrl } from '../lib/api';
 import { UserProfile, WeightLog, BloodPressureLog, Medication } from '../types/health';
 
 export interface ChatHistoryMessage {
@@ -95,8 +95,53 @@ export async function askCareNovaAI({
     throw new Error('No reply returned by AI engine.');
   } catch (err: any) {
     console.error('CareNova AI request error:', err);
+    const rawError = String(err?.message || '');
+    const currentBackend = getApiBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
+
+    // 1. Connection / Network Error (e.g. Render waking from cold start, or wrong backend URL)
+    if (
+      rawError.includes('Could not connect') ||
+      rawError.includes('Failed to fetch') ||
+      rawError.includes('NetworkError') ||
+      rawError.includes('Load failed')
+    ) {
+      return {
+        answer: `⚠️ **Backend Connection Notice**
+
+CareNova AI could not reach the backend server at **\`${currentBackend || 'http://localhost:5000'}\`**.
+
+**How to resolve:**
+1. **Render Cold Start:** If your Render backend was recently deployed or idle on the free tier, it takes **30–50 seconds** to wake up from sleep. Please wait 30 seconds and send your message again!
+2. **Backend URL:** If you are viewing on your live Netlify website, make sure your live Render backend URL is configured (use the **Backend Status** button above or set **\`VITE_API_URL\`** in Netlify).
+3. **Local Dev:** If testing locally, ensure your backend server is running with \`node server/index.js\`.
+
+*(Network error: ${rawError})*`,
+        isFallback: true,
+      };
+    }
+
+    // 2. Google Gemini API Error from Backend (e.g. rate limit, quota, or invalid key)
+    if (rawError.includes('Google Gemini API returned')) {
+      return {
+        answer: `⚠️ **Google Gemini Engine Notice**
+
+The AI backend received the following response from Google Gemini:
+> *${rawError}*
+
+**What to check:**
+• Verify your **\`GEMINI_API_KEY\`** in your **Render Dashboard > Environment Variables** (make sure there are no accidental spaces or quotation marks around the key).
+• Confirm that Generative Language API is enabled and has quota available in your [Google AI Studio](https://aistudio.google.com/).`,
+        isFallback: true,
+      };
+    }
+
+    // 3. General AI Notice
     return {
-      answer: `⚠️ **AI Service Notice**\n\n${err.message || 'The AI service could not be reached right now.'}\n\nPlease check your backend connection or ensure your **\`GEMINI_API_KEY\`** is added in your Render Environment Variables.`,
+      answer: `⚠️ **AI Service Notice**
+
+${rawError || 'The AI service could not be reached right now.'}
+
+Please verify that your Render backend is running and that your **\`GEMINI_API_KEY\`** is active in your Render Environment Variables.`,
       isFallback: true,
     };
   }
