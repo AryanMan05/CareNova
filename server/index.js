@@ -842,6 +842,43 @@ function buildGeminiContents(conversation, cleanPrompt) {
   }));
 }
 
+// Helper to sanitize and classify AI error responses without exposing secrets or raw stack traces
+function sanitizeAiError(errMessage, statusCode) {
+  const lower = String(errMessage || '').toLowerCase();
+
+  // 1. Quota / Rate limit (HTTP 429)
+  if (statusCode === 429 || lower.includes('quota') || lower.includes('resource_exhausted')) {
+    return 'CareNova AI is currently receiving high traffic and reached the free request limit. Please wait a moment and try again.';
+  }
+
+  // 2. Invalid API key (HTTP 400/403 with specific key errors)
+  if (statusCode === 400 && (lower.includes('api_key_invalid') || lower.includes('api key not valid'))) {
+    return 'The backend GEMINI_API_KEY could not be validated by Google AI Studio. Please verify the key in your Render Environment Variables.';
+  }
+
+  // 3. Model unavailable / decommissioned
+  if (
+    lower.includes('not found') ||
+    lower.includes('no longer available') ||
+    lower.includes('unsupported model') ||
+    lower.includes('is not available')
+  ) {
+    return 'The AI service is temporarily undergoing scheduled updates. Please try asking again shortly.';
+  }
+
+  // 4. Region or location restriction
+  if (lower.includes('location') || lower.includes('country') || lower.includes('region')) {
+    return 'Google Gemini API is temporarily restricted in this server region. Please try again shortly.';
+  }
+
+  // 5. Network or timeout issues
+  if (lower.includes('fetch') || lower.includes('network') || lower.includes('econnrefused') || lower.includes('timeout')) {
+    return 'Connection to the AI engine was interrupted. Please check your connection and try again.';
+  }
+
+  return 'CareNova AI could not generate a response right now. Please try asking again in a moment.';
+}
+
 // AI Diagnostic & Status Endpoint
 app.get('/api/ai/status', (req, res) => {
   const geminiKey = getGeminiApiKey();
@@ -850,18 +887,19 @@ app.get('/api/ai/status', (req, res) => {
 
   res.json({
     status: 'online',
-    version: '2.1.0',
+    version: '2.2.0',
     aiConfigured: isConfigured,
     provider: geminiKey ? 'google-gemini' : openaiKey ? 'openai' : 'none',
+    model: 'gemini-3.8-flash',
+    fallbackModel: 'gemini-3.5-flash-lite',
+    models: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'],
     gemini: {
-      detected: Boolean(geminiKey),
-      keyLength: geminiKey ? geminiKey.length : 0,
-      keyPrefix: geminiKey ? `${geminiKey.substring(0, 4)}...${geminiKey.slice(-4)}` : null,
-      models: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'],
+      configured: Boolean(geminiKey),
+      preferredModel: 'gemini-3.8-flash',
+      fallbackModel: 'gemini-3.5-flash-lite',
     },
     openai: {
-      detected: Boolean(openaiKey),
-      keyLength: openaiKey ? openaiKey.length : 0,
+      configured: Boolean(openaiKey),
     },
     timestamp: new Date().toISOString(),
   });
@@ -901,25 +939,43 @@ To activate real-time conversational AI, please add your free **\`GEMINI_API_KEY
 Your core objectives:
 1. Carefully understand the user's specific query and provide helpful, relevant, and human-like answers.
 2. Remember and refer back to context from previous messages in the current conversation to answer follow-up questions naturally.
-3. Support both health/wellness topics (nutrition, sleep, vitals, habit building, exercises) and general friendly conversation.
+3. Be a complete and versatile conversational AI: Answer general knowledge questions (e.g. history, science, technology, inventors, computers, math, everyday inquiries), casual greetings, and friendly conversation naturally and accurately, alongside your health & wellness expertise (nutrition, sleep, vitals, habit building, exercises).
 4. Explain all medical concepts in simple, everyday English. If a clinical term is mentioned, briefly explain what it means in plain words.
-5. Respond in the same language as the user whenever possible. If the user writes in Hindi or Hinglish (e.g., "mujhe headache ho raha hai" or "sugar kaise control karein?"), reply warmly and naturally in Hindi or Hinglish.
+5. Respond fluently in whatever language the user requests or writes in. If the user asks in Hindi, Hinglish, Spanish, or another language (e.g., "mujhe headache ho raha hai", "sugar kaise control karein?", or "Explain that in Hindi"), reply warmly, fluently, and naturally in that requested language.
 6. Provide practical, helpful steps rather than repeating repetitive robotic disclaimers on every single turn.
 7. Keep responses concise, clear, and easy to read (2 to 4 short paragraphs or bullet points), unless the user explicitly asks for in-depth details.
 8. Clinical Safety & Emergency Rules: Never invent medical diagnoses or claim uncertain health info as definite fact. If the user describes acute emergency symptoms (such as crushing chest pain, difficulty breathing, slurred speech, sudden paralysis, severe bleeding, or suicidal distress), urge them to immediately seek emergency care by calling 112 or 108 in India or their local emergency number.
 ${context ? `\nUser Health Profile Context:\n${context}` : ''}`;
 
-    // 1. Google Gemini Provider
+    // 1. Google Gemini Provider (Official current models: gemini-3.8-flash preferred, gemini-3.5-flash-lite fallback)
     if (geminiKey) {
       const contents = buildGeminiContents(conversation, cleanPrompt);
-      const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
+      const geminiModels = [
+        {
+          id: 'gemini-3.8-flash',
+          config: {
+            temperature: 0.7,
+            maxOutputTokens: 1200,
+          },
+        },
+        {
+          id: 'gemini-3.5-flash-lite',
+          config: {
+            // gemini-3.5-flash-lite does not accept custom temperature
+            maxOutputTokens: 1200,
+          },
+        },
+      ];
+
       let geminiResponse = null;
       let lastGeminiError = null;
+      let lastStatusCode = 500;
+      let successfulModel = null;
 
-      for (const model of modelsToTry) {
+      for (const model of geminiModels) {
         try {
           const apiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${geminiKey}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -928,45 +984,52 @@ ${context ? `\nUser Health Profile Context:\n${context}` : ''}`;
                   parts: [{ text: systemInstruction }],
                 },
                 contents,
-                generationConfig: {
-                  temperature: 0.7,
-                  maxOutputTokens: 1000,
-                },
+                generationConfig: model.config,
               }),
             }
           );
 
           if (apiRes.ok) {
             geminiResponse = await apiRes.json();
+            successfulModel = model.id;
             break;
           } else {
             const errBody = await apiRes.json().catch(() => ({}));
+            lastStatusCode = apiRes.status;
             lastGeminiError = errBody?.error?.message || `HTTP ${apiRes.status} (${apiRes.statusText})`;
-            console.warn(`[Gemini API] Model ${model} returned error:`, lastGeminiError);
+            console.warn(`[Gemini API] Model ${model.id} returned HTTP ${apiRes.status}:`, lastGeminiError);
 
             // Fallback: If model complains about system_instruction, retry without it by prepending to user prompt
-            if (lastGeminiError.toLowerCase().includes('system_instruction') || lastGeminiError.toLowerCase().includes('not supported')) {
-              const fallbackContents = buildGeminiContents(conversation, `${systemInstruction}\n\nUser Question:\n${cleanPrompt}`);
+            if (
+              lastGeminiError.toLowerCase().includes('system_instruction') ||
+              lastGeminiError.toLowerCase().includes('not supported')
+            ) {
+              const fallbackContents = buildGeminiContents(
+                conversation,
+                `${systemInstruction}\n\nUser Question:\n${cleanPrompt}`
+              );
               const fallbackRes = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${geminiKey}`,
                 {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     contents: fallbackContents,
-                    generationConfig: { temperature: 0.7, maxOutputTokens: 1000 },
+                    generationConfig: model.config,
                   }),
                 }
               );
               if (fallbackRes.ok) {
                 geminiResponse = await fallbackRes.json();
+                successfulModel = model.id;
                 break;
               }
             }
           }
         } catch (fetchErr) {
           lastGeminiError = fetchErr.message;
-          console.warn(`[Gemini API] Network fetch error with ${model}:`, fetchErr.message);
+          lastStatusCode = 503;
+          console.warn(`[Gemini API] Network fetch error with ${model.id}:`, fetchErr.message);
         }
       }
 
@@ -976,12 +1039,14 @@ ${context ? `\nUser Health Profile Context:\n${context}` : ''}`;
           configured: true,
           reply,
           provider: 'google-gemini',
+          model: successfulModel || 'gemini-3.8-flash',
         });
       }
 
       if (lastGeminiError && !openaiKey) {
-        return res.status(502).json({
-          error: `Google Gemini API returned: ${lastGeminiError}. Please check your GEMINI_API_KEY.`,
+        const sanitizedError = sanitizeAiError(lastGeminiError, lastStatusCode);
+        return res.status(lastStatusCode >= 400 && lastStatusCode < 600 ? lastStatusCode : 502).json({
+          error: sanitizedError,
         });
       }
     }
@@ -1052,9 +1117,9 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`[CareNova Server] Running on http://localhost:${PORT}`);
       if (geminiKey) {
-        console.log(`[CareNova AI] Google Gemini Key: DETECTED (${geminiKey.length} chars) - Live AI Active`);
+        console.log(`[CareNova AI] Google Gemini Key: DETECTED - Preferred Model: gemini-3.8-flash (Fallback: gemini-3.5-flash-lite)`);
       } else if (openaiKey) {
-        console.log(`[CareNova AI] OpenAI Key: DETECTED (${openaiKey.length} chars) - Live AI Active`);
+        console.log(`[CareNova AI] OpenAI Key: DETECTED - Live AI Active`);
       } else {
         console.log(`[CareNova AI] No AI API Key detected - Setup prompt active until GEMINI_API_KEY is added`);
       }

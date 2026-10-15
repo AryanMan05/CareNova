@@ -256,13 +256,16 @@ export const api = {
         version: string;
         aiConfigured: boolean;
         provider: string;
-        gemini: { detected: boolean; keyLength: number; keyPrefix: string | null; models: string[] };
-        openai: { detected: boolean; keyLength: number };
+        model: string;
+        fallbackModel?: string;
+        models: string[];
+        gemini: { configured: boolean; preferredModel: string; fallbackModel?: string };
+        openai: { configured: boolean };
       }>('/api/ai/status');
     },
 
     async chat(prompt: string, conversation: any[] = [], context: string = '') {
-      return request<{ configured: boolean; reply: string; provider?: string }>('/api/ai/chat', {
+      return request<{ configured: boolean; reply: string; provider?: string; model?: string }>('/api/ai/chat', {
         method: 'POST',
         body: JSON.stringify({ prompt, conversation, context }),
       });

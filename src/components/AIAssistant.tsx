@@ -63,7 +63,7 @@ export const AIAssistant: React.FC = () => {
     online: boolean;
     geminiConfigured: boolean;
     provider?: string;
-    keyLength?: number;
+    model?: string;
     error?: string;
     checking: boolean;
   }>({
@@ -80,9 +80,9 @@ export const AIAssistant: React.FC = () => {
       setBackendStatus({
         checked: true,
         online: true,
-        geminiConfigured: Boolean(res?.gemini?.detected || res?.aiConfigured),
+        geminiConfigured: Boolean(res?.gemini?.configured || res?.aiConfigured),
         provider: res?.provider || 'google-gemini',
-        keyLength: res?.gemini?.keyLength,
+        model: res?.model || 'gemini-3.8-flash',
         checking: false,
       });
     } catch (err: any) {
@@ -454,10 +454,16 @@ export const AIAssistant: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-[#476A76] dark:text-[#A9C5C1]">Active Model:</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    {backendStatus.model || 'gemini-3.8-flash'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-[#476A76] dark:text-[#A9C5C1]">Gemini API Key:</span>
                   <span className="font-semibold">
                     {backendStatus.geminiConfigured
-                      ? `Active (${backendStatus.keyLength} chars)`
+                      ? 'Configured (Active)'
                       : backendStatus.online
                       ? 'Missing on Render'
                       : 'Unknown (Backend Offline)'}

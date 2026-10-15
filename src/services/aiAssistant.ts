@@ -120,28 +120,11 @@ CareNova AI could not reach the backend server at **\`${currentBackend || 'http:
       };
     }
 
-    // 2. Google Gemini API Error from Backend (e.g. rate limit, quota, or invalid key)
-    if (rawError.includes('Google Gemini API returned')) {
-      return {
-        answer: `⚠️ **Google Gemini Engine Notice**
-
-The AI backend received the following response from Google Gemini:
-> *${rawError}*
-
-**What to check:**
-• Verify your **\`GEMINI_API_KEY\`** in your **Render Dashboard > Environment Variables** (make sure there are no accidental spaces or quotation marks around the key).
-• Confirm that Generative Language API is enabled and has quota available in your [Google AI Studio](https://aistudio.google.com/).`,
-        isFallback: true,
-      };
-    }
-
-    // 3. General AI Notice
+    // 2. Specific classified error returned by the backend
     return {
-      answer: `⚠️ **AI Service Notice**
+      answer: `⚠️ **CareNova AI Notice**
 
-${rawError || 'The AI service could not be reached right now.'}
-
-Please verify that your Render backend is running and that your **\`GEMINI_API_KEY\`** is active in your Render Environment Variables.`,
+${rawError || 'CareNova AI could not generate a response right now. Please try asking again in a moment.'}`,
       isFallback: true,
     };
   }
